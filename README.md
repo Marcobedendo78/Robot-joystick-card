@@ -1,6 +1,6 @@
 # Robot Joystick Card
 
-![Preview](preview.png)
+![Preview](https://raw.githubusercontent.com/Marcobedendo78/Robot-joystick-card/main/preview.png)
 
 Custom card per Home Assistant pensata per controllare un robot tagliaerba Arduino via MQTT.
 
