@@ -2,7 +2,7 @@
   "name": "robot-joystick-card",
   "version": "1.0.0",
   "description": "Custom Lovelace card per il controllo di un robot tagliaerba Arduino via MQTT",
-  "main": "robot-joystick-card.js",
+  "main": "dist/robot-joystick-card.js",
   "keywords": [
     "home-assistant",
     "lovelace",
