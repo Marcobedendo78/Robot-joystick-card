@@ -1,4 +1,4 @@
-const DEFAULT_ROBOT_IMAGE = new URL('./robot.jpg', import.meta.url).href;
+const DEFAULT_ROBOT_IMAGE = '/hacsfiles/robot-joystick-card/robot.jpg';
 
 class RobotJoystickCard extends HTMLElement {
   static getStubConfig() {
