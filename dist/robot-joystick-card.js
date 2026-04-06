@@ -1,4 +1,4 @@
-const DEFAULT_ROBOT_IMAGE = '/hacsfiles/robot-joystick-card/robot.jpg';
+const DEFAULT_ROBOT_IMAGE = '/hacsfiles/Robot-joystick-card/Robot.jpg';
 
 class RobotJoystickCard extends HTMLElement {
   static getStubConfig() {
