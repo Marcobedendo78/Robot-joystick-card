@@ -1,5 +1,6 @@
 {
   "name": "Robot Joystick Card",
   "render_readme": true,
-  "filename": "robot-joystick-card.js"
+  "filename": "robot-joystick-card.js",
+  "content_in_root": true
 }
