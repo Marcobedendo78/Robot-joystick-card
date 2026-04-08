@@ -1,3 +1,4 @@
+
 const DEFAULT_ROBOT_IMAGE = "/hacsfiles/Robot-joystick-card/Robot.jpg";
 
 class RobotJoystickCard extends HTMLElement {
@@ -18,6 +19,7 @@ class RobotJoystickCard extends HTMLElement {
       topic: "home/robot/mower/control/joystick",
       command_topic: "home/robot/mower/control",
       timer_command_topic: "home/robot/mower/control/timers",
+
       max_distance: 110,
       deadzone: 0.06,
       publish_interval: 40,
@@ -35,9 +37,8 @@ class RobotJoystickCard extends HTMLElement {
       batt_min_voltage: 28.0,
       batt_max_voltage: 33.6,
 
-      timer_count: 4,
+      timer_count: 6,
 
-      // Entità opzionali per sincronizzare i timer dal robot/Home Assistant
       timer1_hour_entity: "",
       timer1_minute_entity: "",
       timer1_enabled_entity: "",
@@ -57,6 +58,16 @@ class RobotJoystickCard extends HTMLElement {
       timer4_minute_entity: "",
       timer4_enabled_entity: "",
       timer4_action_entity: "",
+
+      timer5_hour_entity: "",
+      timer5_minute_entity: "",
+      timer5_enabled_entity: "",
+      timer5_action_entity: "",
+
+      timer6_hour_entity: "",
+      timer6_minute_entity: "",
+      timer6_enabled_entity: "",
+      timer6_action_entity: "",
 
       ...config,
     };
@@ -85,22 +96,26 @@ class RobotJoystickCard extends HTMLElement {
   }
 
   _ensureRuntimeState() {
-    if (!this.timerPanelOpen) this.timerPanelOpen = false;
+    if (typeof this.timerPanelOpen !== "boolean") this.timerPanelOpen = false;
+    if (typeof this.joystickPanelOpen !== "boolean") this.joystickPanelOpen = false;
+
     if (!this.timerState) {
       this.timerState = this._loadTimerState();
     }
+
     if (!this.state) {
       this.state = { x: 0, y: 0, left: 0, right: 0, active: 0 };
     }
+
     if (!this.lastPublish) this.lastPublish = 0;
   }
 
   _storageKey() {
-    return "robot-joystick-card-timers-v1";
+    return "robot-joystick-card-timers-v3";
   }
 
   _defaultTimerState() {
-    const count = Math.max(1, Math.min(8, Number(this.config?.timer_count || 4)));
+    const count = Math.max(1, Math.min(8, Number(this.config?.timer_count || 6)));
     const timers = [];
     for (let i = 1; i <= count; i += 1) {
       timers.push({
@@ -120,7 +135,14 @@ class RobotJoystickCard extends HTMLElement {
       if (!raw) return this._defaultTimerState();
       const parsed = JSON.parse(raw);
       if (!parsed || !Array.isArray(parsed.timers)) return this._defaultTimerState();
-      return parsed;
+
+      const defaults = this._defaultTimerState();
+      return {
+        timers: defaults.timers.map((t) => {
+          const found = parsed.timers.find((x) => Number(x.id) === Number(t.id));
+          return found ? { ...t, ...found } : t;
+        }),
+      };
     } catch (_err) {
       return this._defaultTimerState();
     }
@@ -334,9 +356,7 @@ class RobotJoystickCard extends HTMLElement {
       const hasRemoteData =
         hourRaw !== null || minuteRaw !== null || enabledRaw !== null || actionRaw !== null;
 
-      if (!hasRemoteData) {
-        return timer;
-      }
+      if (!hasRemoteData) return timer;
 
       changed = true;
 
@@ -350,7 +370,7 @@ class RobotJoystickCard extends HTMLElement {
             ? this._parseEnabledValue(enabledRaw, timer.enabled)
             : timer.enabled,
         action:
-          actionRaw !== null ? this._clampInt(actionRaw, 1, 6, timer.action) : timer.action,
+          actionRaw !== null ? this._clampInt(actionRaw, 1, 5, timer.action) : timer.action,
       };
     });
 
@@ -404,6 +424,109 @@ class RobotJoystickCard extends HTMLElement {
     }
   }
 
+  _buildNumberOptions(start, end, step = 1, selected = null) {
+    const out = [];
+    for (let i = start; i <= end; i += step) {
+      const label = String(i).padStart(2, "0");
+      out.push(
+        `<option value="${i}" ${Number(selected) === i ? "selected" : ""}>${label}</option>`
+      );
+    }
+    return out.join("");
+  }
+
+  _buildActionOptions(selected = 1) {
+    const actions = [
+      { value: 1, label: "Uscita Z1" },
+      { value: 2, label: "Uscita Z2" },
+      { value: 3, label: "Taglia sul filo" },
+      { value: 4, label: "Partenza rapida" },
+      { value: 5, label: "Custom" },
+    ];
+
+    return actions
+      .map(
+        (a) =>
+          `<option value="${a.value}" ${Number(selected) === a.value ? "selected" : ""}>${a.label}</option>`
+      )
+      .join("");
+  }
+
+  _actionLabel(action) {
+    const map = {
+      1: "Uscita Z1",
+      2: "Uscita Z2",
+      3: "Taglia sul filo",
+      4: "Partenza rapida",
+      5: "Custom",
+    };
+    return map[Number(action)] || "Custom";
+  }
+
+  _iconStart() {
+    return `
+      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
+        <path d="M8 6L18 12L8 18Z" fill="currentColor"></path>
+      </svg>
+    `;
+  }
+
+  _iconStop() {
+    return `
+      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
+        <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"></rect>
+      </svg>
+    `;
+  }
+
+  _iconExitDock() {
+    return `
+      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
+        <path d="M4 17H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M6 17V13H12V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+        <path d="M13 7H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M16 4L20 7L16 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+      </svg>
+    `;
+  }
+
+  _iconDock() {
+    return `
+      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
+        <path d="M5 11L12 5L19 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+        <path d="M7 10.5V18H17V10.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+        <path d="M10 18V14H14V18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+      </svg>
+    `;
+  }
+
+  _iconManual() {
+    return `
+      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
+        <path d="M7 10H17C19.2 10 21 11.8 21 14C21 16.2 19.2 18 17 18H7C4.8 18 3 16.2 3 14C3 11.8 4.8 10 7 10Z" stroke="currentColor" stroke-width="2" fill="none"></path>
+        <circle cx="9" cy="14" r="1.5" fill="currentColor"></circle>
+        <circle cx="15.5" cy="13" r="1.2" fill="currentColor"></circle>
+        <circle cx="18" cy="15" r="1.2" fill="currentColor"></circle>
+        <path d="M9 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M7 9H11" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+      </svg>
+    `;
+  }
+
+  _iconAuto() {
+    return `
+      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
+        <rect x="7" y="7" width="10" height="8" rx="2" stroke="currentColor" stroke-width="2" fill="none"></rect>
+        <circle cx="10" cy="11" r="1.2" fill="currentColor"></circle>
+        <circle cx="14" cy="11" r="1.2" fill="currentColor"></circle>
+        <path d="M12 3V7" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M9 18H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M8 21L9.5 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+        <path d="M16 21L14.5 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+      </svg>
+    `;
+  }
+
   _renderTimerRows() {
     const timers = this.timerState?.timers || [];
     return timers
@@ -424,9 +547,9 @@ class RobotJoystickCard extends HTMLElement {
             </label>
 
             <label class="field">
-              <span>Min</span>
+              <span>Minuti</span>
               <select class="timer-input" id="timer_${timer.id}_minute">
-                ${this._buildNumberOptions(0, 59, 5, timer.minute)}
+                ${this._buildNumberOptions(0, 59, 1, timer.minute)}
               </select>
             </label>
 
@@ -451,47 +574,6 @@ class RobotJoystickCard extends HTMLElement {
       .join("");
   }
 
-  _buildNumberOptions(start, end, step = 1, selected = null) {
-    const out = [];
-    for (let i = start; i <= end; i += step) {
-      const label = String(i).padStart(2, "0");
-      out.push(
-        `<option value="${i}" ${Number(selected) === i ? "selected" : ""}>${label}</option>`
-      );
-    }
-    return out.join("");
-  }
-
-  _buildActionOptions(selected = 1) {
-    const actions = [
-      { value: 1, label: "Uscita normale" },
-      { value: 2, label: "Partenza su filo" },
-      { value: 3, label: "Zona 1" },
-      { value: 4, label: "Zona 2" },
-      { value: 5, label: "Taglio bordi" },
-      { value: 6, label: "Custom" },
-    ];
-
-    return actions
-      .map(
-        (a) =>
-          `<option value="${a.value}" ${Number(selected) === a.value ? "selected" : ""}>${a.label}</option>`
-      )
-      .join("");
-  }
-
-  _actionLabel(action) {
-    const map = {
-      1: "Uscita normale",
-      2: "Partenza su filo",
-      3: "Zona 1",
-      4: "Zona 2",
-      5: "Taglio bordi",
-      6: "Custom",
-    };
-    return map[Number(action)] || "Custom";
-  }
-
   _bindTimerEvents(root) {
     const timerBtn = root.getElementById("timer_btn");
     const timerCloseBtn = root.getElementById("timer_close_btn");
@@ -500,24 +582,25 @@ class RobotJoystickCard extends HTMLElement {
 
     if (timerBtn) {
       timerBtn.addEventListener("click", () => {
+        this.joystickPanelOpen = false;
         this.timerPanelOpen = true;
         this._syncTimersFromEntitiesOrStorage();
         this._refreshTimerUI();
-        this._updateTimerPanel();
+        this._updatePanels();
       });
     }
 
     if (timerCloseBtn) {
       timerCloseBtn.addEventListener("click", () => {
         this.timerPanelOpen = false;
-        this._updateTimerPanel();
+        this._updatePanels();
       });
     }
 
     if (timerOverlay) {
       timerOverlay.addEventListener("click", () => {
         this.timerPanelOpen = false;
-        this._updateTimerPanel();
+        this._updatePanels();
       });
     }
 
@@ -538,7 +621,7 @@ class RobotJoystickCard extends HTMLElement {
         }
 
         this.timerPanelOpen = false;
-        this._updateTimerPanel();
+        this._updatePanels();
       });
     }
 
@@ -555,6 +638,27 @@ class RobotJoystickCard extends HTMLElement {
     });
   }
 
+  _bindJoystickPanelEvents(root) {
+    const closeBtn = root.getElementById("joystick_close_btn");
+    const overlay = root.getElementById("joystick_overlay");
+
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        this.joystickPanelOpen = false;
+        this._updatePanels();
+        this._reset();
+      });
+    }
+
+    if (overlay) {
+      overlay.addEventListener("click", () => {
+        this.joystickPanelOpen = false;
+        this._updatePanels();
+        this._reset();
+      });
+    }
+  }
+
   _readTimerValuesFromUI() {
     if (!this.shadowRoot || !this.timerState?.timers) return;
 
@@ -569,7 +673,7 @@ class RobotJoystickCard extends HTMLElement {
         hour: hourEl ? this._clampInt(hourEl.value, 0, 23, timer.hour) : timer.hour,
         minute: minuteEl ? this._clampInt(minuteEl.value, 0, 59, timer.minute) : timer.minute,
         enabled: enabledEl ? this._clampInt(enabledEl.value, 0, 1, timer.enabled) : timer.enabled,
-        action: actionEl ? this._clampInt(actionEl.value, 1, 6, timer.action) : timer.action,
+        action: actionEl ? this._clampInt(actionEl.value, 1, 5, timer.action) : timer.action,
       };
     });
   }
@@ -599,19 +703,29 @@ class RobotJoystickCard extends HTMLElement {
     });
   }
 
-  _updateTimerPanel() {
+  _updatePanels() {
     if (!this.shadowRoot) return;
 
-    const panel = this.shadowRoot.getElementById("timer_panel");
-    const overlay = this.shadowRoot.getElementById("timer_overlay");
+    const timerPanel = this.shadowRoot.getElementById("timer_panel");
+    const timerOverlay = this.shadowRoot.getElementById("timer_overlay");
+    const joystickPanel = this.shadowRoot.getElementById("joystick_panel");
+    const joystickOverlay = this.shadowRoot.getElementById("joystick_overlay");
 
-    if (panel) panel.classList.toggle("open", this.timerPanelOpen);
-    if (overlay) overlay.classList.toggle("open", this.timerPanelOpen);
+    if (timerPanel) timerPanel.classList.toggle("open", this.timerPanelOpen);
+    if (timerOverlay) timerOverlay.classList.toggle("open", this.timerPanelOpen);
+
+    if (joystickPanel) joystickPanel.classList.toggle("open", this.joystickPanelOpen);
+    if (joystickOverlay) joystickOverlay.classList.toggle("open", this.joystickPanelOpen);
+  }
+
+  _openJoystickPanel() {
+    this.timerPanelOpen = false;
+    this.joystickPanelOpen = true;
+    this._updatePanels();
   }
 
   _renderCard() {
     this._ensureRuntimeState();
-
     const root = this.attachShadow({ mode: "open" });
 
     root.innerHTML = `
@@ -630,7 +744,7 @@ class RobotJoystickCard extends HTMLElement {
           border-radius: 22px;
           padding: 14px;
           background:
-            radial-gradient(circle at top left, rgba(80,120,255,0.16), transparent 34%),
+            radial-gradient(circle at top left, rgba(80,120,255,0.14), transparent 34%),
             linear-gradient(180deg, rgba(18,22,30,0.96), rgba(10,12,17,0.98));
           color: #fff;
         }
@@ -647,49 +761,344 @@ class RobotJoystickCard extends HTMLElement {
           gap: 12px;
           font-size: 20px;
           font-weight: 700;
-          letter-spacing: 0.2px;
         }
 
         .title .dot {
-          width: 10px;
-          height: 10px;
+          width: 11px;
+          height: 11px;
           border-radius: 999px;
           background: #63ff88;
-          box-shadow: 0 0 10px rgba(99,255,136,0.85);
+          box-shadow: 0 0 12px rgba(99,255,136,0.9);
           flex: 0 0 auto;
         }
 
-        .telemetry {
+        .top-actions {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr;
           gap: 10px;
         }
 
-        .tile {
-          border-radius: 18px;
-          padding: 12px;
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.08);
-          backdrop-filter: blur(6px);
+        .panel-btn {
+          border: 0;
+          outline: none;
+          border-radius: 16px;
+          padding: 12px 14px;
+          font-size: 14px;
+          font-weight: 800;
+          color: #fff;
+          cursor: pointer;
+          background: linear-gradient(180deg, rgba(59,117,255,0.96), rgba(42,92,220,0.96));
+          border: 1px solid rgba(255,255,255,0.1);
+          transition: transform 0.16s ease;
         }
 
-        .tile-label {
+        .panel-btn:active {
+          transform: scale(0.985);
+        }
+
+        .main-view {
+          display: grid;
+          gap: 12px;
+        }
+
+        .hero-card {
+          position: relative;
+          min-height: 220px;
+          border-radius: 22px;
+          overflow: hidden;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
+          padding: 12px;
+        }
+
+        .hero-stage {
+          position: relative;
+          width: 100%;
+          height: 150px;
+          border-radius: 18px;
+          overflow: hidden;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+          border: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .grass-layer,
+        .grass-cut {
+          position: absolute;
+          left: 16px;
+          right: 16px;
+          height: 26px;
+          bottom: 18px;
+          border-radius: 999px;
+        }
+
+        .grass-layer {
+          background-image:
+            repeating-linear-gradient(
+              90deg,
+              rgba(120,255,140,0.72) 0px,
+              rgba(120,255,140,0.72) 2px,
+              transparent 2px,
+              transparent 10px
+            );
+          opacity: 0.72;
+        }
+
+        .grass-cut {
+          width: 0%;
+          overflow: hidden;
+          background-image:
+            radial-gradient(circle, rgba(230,255,236,0.95) 0 1.3px, transparent 1.5px);
+          background-size: 10px 10px;
+          opacity: 0.95;
+        }
+
+        .robot-img {
+          position: absolute;
+          left: 50%;
+          bottom: 30px;
+          transform: translateX(-50%);
+          width: 170px;
+          max-width: 72%;
+          filter: drop-shadow(0 10px 20px rgba(0,0,0,0.38));
+          user-select: none;
+          pointer-events: none;
+        }
+
+        .hero-bottom {
+          margin-top: 12px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+
+        .mini-tile {
+          border-radius: 16px;
+          padding: 12px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .mini-label {
           font-size: 12px;
           opacity: 0.75;
           margin-bottom: 6px;
         }
 
-        .tile-value {
-          font-size: 18px;
-          font-weight: 700;
-          line-height: 1.1;
+        .mini-value {
+          font-size: 22px;
+          font-weight: 800;
+          line-height: 1;
         }
 
-        .joystick-wrap {
+        .mode-panel {
+          border-radius: 18px;
+          padding: 12px;
+          background: rgba(80,130,255,0.12);
+          border: 1px solid rgba(80,130,255,0.22);
+        }
+
+        .mode-panel.off {
+          background: rgba(255,255,255,0.05);
+          border-color: rgba(255,255,255,0.08);
+        }
+
+        .mode-title {
+          font-size: 17px;
+          font-weight: 800;
+          margin-bottom: 4px;
+        }
+
+        .mode-sub {
+          font-size: 13px;
+          opacity: 0.85;
+        }
+
+        .battery-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .battery-shell {
+          position: relative;
+          width: 50px;
+          height: 22px;
+          border: 2px solid rgba(255,255,255,0.92);
+          border-radius: 6px;
+          padding: 2px;
+          display: flex;
+          align-items: center;
+          background: rgba(255,255,255,0.04);
+        }
+
+        .battery-tip {
+          position: absolute;
+          right: -6px;
+          top: 50%;
+          width: 4px;
+          height: 10px;
+          transform: translateY(-50%);
+          border-radius: 0 3px 3px 0;
+          background: rgba(255,255,255,0.9);
+        }
+
+        .battery-bars {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 2px;
+          width: 100%;
+          height: 100%;
+        }
+
+        .battery-bar {
+          border-radius: 2px;
+          background: rgba(255,255,255,0.14);
+        }
+
+        .battery-bar.on {
+          background: linear-gradient(180deg, #7dff9d, #2adf68);
+        }
+
+        .battery-shell.mid .battery-bar.on {
+          background: linear-gradient(180deg, #ffe66d, #ffbb33);
+        }
+
+        .battery-shell.low .battery-bar.on {
+          background: linear-gradient(180deg, #ff8d8d, #ff4f4f);
+        }
+
+        .commands {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+
+        .cmd-btn {
+          border: 0;
+          outline: none;
+          border-radius: 18px;
+          padding: 12px 8px;
+          color: #fff;
+          cursor: pointer;
+          background: rgba(255,255,255,0.07);
+          border: 1px solid rgba(255,255,255,0.08);
+          transition: transform 0.16s ease, background 0.16s ease;
+          display: grid;
+          gap: 6px;
+          align-items: center;
+          justify-items: center;
+          min-height: 74px;
+        }
+
+        .cmd-btn:active {
+          transform: scale(0.98);
+        }
+
+        .cmd-btn.primary {
+          background: linear-gradient(180deg, rgba(63,132,255,0.95), rgba(42,95,220,0.95));
+        }
+
+        .cmd-btn.warn {
+          background: linear-gradient(180deg, rgba(255,109,109,0.95), rgba(209,62,62,0.95));
+        }
+
+        .cmd-btn.accent {
+          background: linear-gradient(180deg, rgba(46,204,113,0.95), rgba(24,155,82,0.95));
+        }
+
+        .btn-icon {
+          width: 24px;
+          height: 24px;
+          display: block;
+          color: currentColor;
+        }
+
+        .cmd-btn .label {
+          font-size: 13px;
+          font-weight: 800;
+          line-height: 1.1;
+          text-align: center;
+        }
+
+        .bottom-actions {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 12px;
+          gap: 10px;
+        }
+
+        .overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.35);
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.25s ease;
+          z-index: 30;
+        }
+
+        .overlay.open {
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .slide-panel {
+          position: absolute;
+          left: 10px;
+          right: 10px;
+          bottom: 10px;
+          z-index: 31;
+          transform: translateY(108%);
+          transition: transform 0.28s ease;
+          border-radius: 24px;
+          padding: 14px;
+          background:
+            linear-gradient(180deg, rgba(18,22,30,0.985), rgba(10,12,17,0.985));
+          border: 1px solid rgba(255,255,255,0.09);
+          box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+          max-height: calc(100% - 20px);
+          overflow: auto;
+        }
+
+        .slide-panel.open {
+          transform: translateY(0);
+        }
+
+        .panel-header {
+          display: flex;
           align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .panel-title {
+          font-size: 18px;
+          font-weight: 800;
+        }
+
+        .panel-close {
+          width: 40px;
+          height: 40px;
+          border-radius: 12px;
+          border: 0;
+          cursor: pointer;
+          color: #fff;
+          background: rgba(255,255,255,0.08);
+          font-size: 18px;
+          font-weight: 800;
+        }
+
+        .panel-note {
+          font-size: 12px;
+          opacity: 0.76;
+          margin-bottom: 12px;
+        }
+
+        .joystick-stage {
+          display: grid;
+          gap: 12px;
         }
 
         .pad-card {
@@ -739,8 +1148,8 @@ class RobotJoystickCard extends HTMLElement {
           position: absolute;
           top: 50%;
           left: 50%;
-          width: 52px;
-          height: 52px;
+          width: 56px;
+          height: 56px;
           border-radius: 50%;
           transform: translate(-50%, -50%);
           background:
@@ -752,205 +1161,28 @@ class RobotJoystickCard extends HTMLElement {
           pointer-events: none;
         }
 
-        .robot-side {
+        .joy-values {
           display: grid;
+          grid-template-columns: 1fr 1fr;
           gap: 10px;
         }
 
-        .robot-visual {
-          position: relative;
-          min-height: 170px;
-          border-radius: 22px;
-          overflow: hidden;
+        .joy-box {
+          border-radius: 16px;
+          padding: 12px;
           background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.08);
         }
 
-        .grass-layer,
-        .grass-cut {
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: 22px;
-          bottom: 18px;
-          border-radius: 999px;
-        }
-
-        .grass-layer {
-          background-image:
-            repeating-linear-gradient(
-              90deg,
-              rgba(120,255,140,0.7) 0px,
-              rgba(120,255,140,0.7) 2px,
-              transparent 2px,
-              transparent 10px
-            );
-          opacity: 0.65;
-        }
-
-        .grass-cut {
-          width: 0%;
-          overflow: hidden;
-          background-image:
-            radial-gradient(circle, rgba(210,255,220,0.9) 0 1.3px, transparent 1.5px);
-          background-size: 10px 10px;
-          opacity: 0.95;
-        }
-
-        .robot-img {
-          position: absolute;
-          left: 50%;
-          bottom: 28px;
-          transform: translateX(-50%);
-          width: 140px;
-          max-width: 72%;
-          filter: drop-shadow(0 8px 18px rgba(0,0,0,0.35));
-          user-select: none;
-          pointer-events: none;
-        }
-
-        .mode-panel {
-          border-radius: 18px;
-          padding: 12px;
-          background: rgba(80,130,255,0.12);
-          border: 1px solid rgba(80,130,255,0.22);
-        }
-
-        .mode-panel.off {
-          background: rgba(255,255,255,0.05);
-          border-color: rgba(255,255,255,0.08);
-        }
-
-        .mode-title {
-          font-size: 17px;
-          font-weight: 700;
-          margin-bottom: 4px;
-        }
-
-        .mode-sub {
-          font-size: 13px;
-          opacity: 0.8;
-        }
-
-        .telemetry-mini {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 8px;
-        }
-
-        .mini {
-          font-size: 13px;
-          opacity: 0.9;
-        }
-
-        .commands {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
-        }
-
-        .cmd-btn {
-          border: 0;
-          outline: none;
-          border-radius: 16px;
-          padding: 12px 10px;
-          font-size: 14px;
-          font-weight: 700;
-          color: #fff;
-          background: rgba(255,255,255,0.08);
-          border: 1px solid rgba(255,255,255,0.09);
-          cursor: pointer;
-          transition: transform 0.16s ease, background 0.16s ease;
-        }
-
-        .cmd-btn:active {
-          transform: scale(0.98);
-        }
-
-        .cmd-btn.primary {
-          background: linear-gradient(180deg, rgba(63,132,255,0.95), rgba(42,95,220,0.95));
-        }
-
-        .cmd-btn.warn {
-          background: linear-gradient(180deg, rgba(255,109,109,0.95), rgba(209,62,62,0.95));
-        }
-
-        .cmd-btn.accent {
-          background: linear-gradient(180deg, rgba(46,204,113,0.95), rgba(24,155,82,0.95));
-        }
-
-        .bottom-actions {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
-        }
-
-        .timer-overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0,0,0,0.28);
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.25s ease;
-          z-index: 30;
-        }
-
-        .timer-overlay.open {
-          opacity: 1;
-          pointer-events: auto;
-        }
-
-        .timer-panel {
-          position: absolute;
-          left: 10px;
-          right: 10px;
-          bottom: 10px;
-          z-index: 31;
-          transform: translateY(108%);
-          transition: transform 0.28s ease;
-          border-radius: 24px;
-          padding: 14px;
-          background:
-            linear-gradient(180deg, rgba(18,22,30,0.98), rgba(10,12,17,0.98));
-          border: 1px solid rgba(255,255,255,0.09);
-          box-shadow: 0 18px 40px rgba(0,0,0,0.45);
-          max-height: calc(100% - 20px);
-          overflow: auto;
-        }
-
-        .timer-panel.open {
-          transform: translateY(0);
-        }
-
-        .timer-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 12px;
-        }
-
-        .timer-title {
-          font-size: 18px;
-          font-weight: 800;
-        }
-
-        .timer-close {
-          width: 38px;
-          height: 38px;
-          border-radius: 12px;
-          border: 0;
-          cursor: pointer;
-          color: #fff;
-          background: rgba(255,255,255,0.08);
-          font-size: 18px;
-          font-weight: 800;
-        }
-
-        .timer-note {
+        .joy-box .k {
           font-size: 12px;
-          opacity: 0.76;
-          margin-bottom: 12px;
+          opacity: 0.74;
+          margin-bottom: 6px;
+        }
+
+        .joy-box .v {
+          font-size: 18px;
+          font-weight: 800;
         }
 
         .timer-list {
@@ -1034,12 +1266,12 @@ class RobotJoystickCard extends HTMLElement {
         }
 
         @media (max-width: 760px) {
-          .joystick-wrap {
+          .hero-bottom {
             grid-template-columns: 1fr;
           }
 
           .commands {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
           }
 
           .timer-grid {
@@ -1055,76 +1287,124 @@ class RobotJoystickCard extends HTMLElement {
             <span class="dot"></span>
           </div>
 
-          <div class="telemetry">
-            <div class="tile">
-              <div class="tile-label">Joystick</div>
-              <div class="tile-value">X: <span id="xv">0</span> | Y: <span id="yv">0</span></div>
-            </div>
+          <div class="top-actions">
+            <button class="panel-btn" id="joystick_btn_top">Joystick</button>
+          </div>
 
-            <div class="tile">
-              <div class="tile-label">Motori</div>
-              <div class="tile-value">L: <span id="lv">0</span> | R: <span id="rv">0</span></div>
-            </div>
+          <div class="main-view">
+            <div class="hero-card">
+              <div class="hero-stage">
+                <div class="grass-layer"></div>
+                <div class="grass-cut" id="grass_cut"></div>
+                <img class="robot-img" src="${this.config.robot_image}" alt="Robot">
+              </div>
 
-            <div class="tile">
-              <div class="tile-label">Battery</div>
-              <div class="tile-value" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-                <span id="battery_pct">0%</span>
-                <span id="battery_icon">${this._renderBatteryIcon(0)}</span>
+              <div class="hero-bottom">
+                <div class="mini-tile">
+                  <div class="mini-label">Battery</div>
+                  <div class="battery-row">
+                    <div class="mini-value" id="battery_pct">0%</div>
+                    <div id="battery_icon">${this._renderBatteryIcon(0)}</div>
+                  </div>
+                </div>
+
+                <div class="mini-tile">
+                  <div class="mini-label">Loop</div>
+                  <div class="mini-value" id="loop_val">-</div>
+                </div>
+
+                <div class="mini-tile">
+                  <div class="mini-label">Amp</div>
+                  <div class="mini-value" id="battery_amps_val">-</div>
+                </div>
               </div>
             </div>
 
-            <div class="tile">
-              <div class="tile-label">Loop / Amp</div>
-              <div class="mini">Loop: <span id="loop_val">-</span></div>
-              <div class="mini">Amp: <span id="battery_amps_val">-</span></div>
+            <div class="mode-panel" id="mow_panel">
+              <div class="mode-title" id="mow_text">Idle</div>
+              <div class="mode-sub" id="mow_sub">In attesa</div>
+            </div>
+
+            <div class="commands">
+              <button class="cmd-btn primary" data-command="start">
+                ${this._iconStart()}
+                <span class="label">Start</span>
+              </button>
+
+              <button class="cmd-btn warn" data-command="stop">
+                ${this._iconStop()}
+                <span class="label">Stop</span>
+              </button>
+
+              <button class="cmd-btn accent" data-command="exit_dock">
+                ${this._iconExitDock()}
+                <span class="label">Exit Dock</span>
+              </button>
+
+              <button class="cmd-btn" data-command="dock">
+                ${this._iconDock()}
+                <span class="label">Dock</span>
+              </button>
+
+              <button class="cmd-btn" data-command="manual_mode">
+                ${this._iconManual()}
+                <span class="label">Manual</span>
+              </button>
+
+              <button class="cmd-btn" data-command="auto_mode">
+                ${this._iconAuto()}
+                <span class="label">Auto</span>
+              </button>
+            </div>
+
+            <div class="bottom-actions">
+              <button class="panel-btn" id="timer_btn">Timer</button>
+              <button class="panel-btn" id="joystick_btn_bottom">Joystick</button>
             </div>
           </div>
+        </div>
 
-          <div class="joystick-wrap">
+        <div class="overlay" id="joystick_overlay"></div>
+        <div class="overlay" id="timer_overlay"></div>
+
+        <div class="slide-panel" id="joystick_panel">
+          <div class="panel-header">
+            <div class="panel-title">Joystick</div>
+            <button class="panel-close" id="joystick_close_btn">✕</button>
+          </div>
+
+          <div class="panel-note">
+            Muovi il joystick per comandare il robot e premi X per tornare alla card principale.
+          </div>
+
+          <div class="joystick-stage">
             <div class="pad-card">
               <div class="pad" id="pad">
                 <div class="knob" id="knob"></div>
               </div>
             </div>
 
-            <div class="robot-side">
-              <div class="robot-visual">
-                <div class="grass-layer"></div>
-                <div class="grass-cut" id="grass_cut"></div>
-                <img class="robot-img" src="${this.config.robot_image}" alt="Robot">
+            <div class="joy-values">
+              <div class="joy-box">
+                <div class="k">Joystick</div>
+                <div class="v">X: <span id="xv">0</span> | Y: <span id="yv">0</span></div>
               </div>
 
-              <div class="mode-panel" id="mow_panel">
-                <div class="mode-title" id="mow_text">Idle</div>
-                <div class="mode-sub" id="mow_sub">In attesa</div>
+              <div class="joy-box">
+                <div class="k">Motori</div>
+                <div class="v">L: <span id="lv">0</span> | R: <span id="rv">0</span></div>
               </div>
             </div>
           </div>
-
-          <div class="commands">
-            <button class="cmd-btn primary" data-command="start">Start</button>
-            <button class="cmd-btn warn" data-command="stop">Stop</button>
-            <button class="cmd-btn accent" data-command="exit_dock">Exit Dock</button>
-            <button class="cmd-btn" data-command="dock">Dock</button>
-            <button class="cmd-btn" data-command="manual_mode">Manual Mode</button>
-            <button class="cmd-btn" data-command="auto_mode">Automatic Mode</button>
-          </div>
-
-          <div class="bottom-actions">
-            <button class="cmd-btn primary" id="timer_btn">Timer</button>
-          </div>
         </div>
 
-        <div class="timer-overlay" id="timer_overlay"></div>
-
-        <div class="timer-panel" id="timer_panel">
-          <div class="timer-header">
-            <div class="timer-title">Programmazione Timer</div>
-            <button class="timer-close" id="timer_close_btn">✕</button>
+        <div class="slide-panel" id="timer_panel">
+          <div class="panel-header">
+            <div class="panel-title">Programmazione Timer</div>
+            <button class="panel-close" id="timer_close_btn">✕</button>
           </div>
 
-          <div class="timer-note">
+          <div class="panel-note">
             Modifica gli orari e le azioni, poi premi conferma per salvarli sul robot.
           </div>
 
@@ -1133,7 +1413,7 @@ class RobotJoystickCard extends HTMLElement {
           </div>
 
           <div class="timer-footer">
-            <button class="cmd-btn primary" id="save_timers_btn">Conferma e salva</button>
+            <button class="panel-btn" id="save_timers_btn">Conferma e salva</button>
             <div class="timer-save-msg" id="timer_save_msg"></div>
           </div>
         </div>
@@ -1167,9 +1447,20 @@ class RobotJoystickCard extends HTMLElement {
       });
     });
 
+    const joyTop = root.getElementById("joystick_btn_top");
+    const joyBottom = root.getElementById("joystick_btn_bottom");
+
+    if (joyTop) {
+      joyTop.addEventListener("click", () => this._openJoystickPanel());
+    }
+    if (joyBottom) {
+      joyBottom.addEventListener("click", () => this._openJoystickPanel());
+    }
+
+    this._bindJoystickPanelEvents(root);
     this._bindTimerEvents(root);
     this._refreshTimerUI();
-    this._updateTimerPanel();
+    this._updatePanels();
 
     this.isDragging = false;
 
@@ -1283,16 +1574,18 @@ class RobotJoystickCard extends HTMLElement {
 
   _reset() {
     this.state = { x: 0, y: 0, left: 0, right: 0, active: 0 };
-    this.knob.style.transform = "translate(-50%, -50%)";
+    if (this.knob) {
+      this.knob.style.transform = "translate(-50%, -50%)";
+    }
     this._refreshTelemetry();
     this._publishJoystick();
   }
 
   _refreshTelemetry() {
-    this.xv.textContent = this.state.x;
-    this.yv.textContent = this.state.y;
-    this.lv.textContent = this.state.left;
-    this.rv.textContent = this.state.right;
+    if (this.xv) this.xv.textContent = this.state.x;
+    if (this.yv) this.yv.textContent = this.state.y;
+    if (this.lv) this.lv.textContent = this.state.left;
+    if (this.rv) this.rv.textContent = this.state.right;
   }
 
   _publishJoystick() {
@@ -1320,7 +1613,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.1.0 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.0.6 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
