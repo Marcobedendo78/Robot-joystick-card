@@ -1,4 +1,3 @@
-
 const DEFAULT_ROBOT_IMAGE = "/hacsfiles/Robot-joystick-card/Robot.jpg";
 
 class RobotJoystickCard extends HTMLElement {
@@ -34,6 +33,7 @@ class RobotJoystickCard extends HTMLElement {
       tracking_entity: "sensor.mower_tracking",
 
       robot_image: DEFAULT_ROBOT_IMAGE,
+
       batt_min_voltage: 28.0,
       batt_max_voltage: 33.6,
 
@@ -111,7 +111,7 @@ class RobotJoystickCard extends HTMLElement {
   }
 
   _storageKey() {
-    return "robot-joystick-card-timers-v3";
+    return "robot-joystick-card-timers-v4";
   }
 
   _defaultTimerState() {
@@ -194,7 +194,9 @@ class RobotJoystickCard extends HTMLElement {
     const min = Number(this.config.batt_min_voltage ?? 28.0);
     const max = Number(this.config.batt_max_voltage ?? 33.6);
     const value = Number(voltage);
+
     if (Number.isNaN(value)) return 0;
+
     let pct = ((value - min) / (max - min)) * 100;
     pct = Math.max(0, Math.min(100, pct));
     return Math.round(pct);
@@ -212,14 +214,19 @@ class RobotJoystickCard extends HTMLElement {
   _renderBatteryIcon(percentage) {
     const bars = this._getBatteryBars(percentage);
     const cls = percentage <= 15 ? "low" : percentage <= 35 ? "mid" : "";
+
     return `
-      <div class="battery-shell ${cls}">
-        <div class="battery-tip"></div>
-        <div class="battery-bars">
-          ${[1, 2, 3, 4, 5]
-            .map((n) => `<span class="battery-bar ${bars >= n ? "on" : ""}"></span>`)
-            .join("")}
+      <div class="battery-icon ${cls}">
+        <div class="battery-shell">
+          <div class="battery-bars">
+            <div class="battery-bar ${bars >= 1 ? "active" : ""}"></div>
+            <div class="battery-bar ${bars >= 2 ? "active" : ""}"></div>
+            <div class="battery-bar ${bars >= 3 ? "active" : ""}"></div>
+            <div class="battery-bar ${bars >= 4 ? "active" : ""}"></div>
+            <div class="battery-bar ${bars >= 5 ? "active" : ""}"></div>
+          </div>
         </div>
+        <div class="battery-tip"></div>
       </div>
     `;
   }
@@ -300,6 +307,7 @@ class RobotJoystickCard extends HTMLElement {
 
   _sendCommand(command) {
     if (!this._hass) return;
+
     this._hass.callService("mqtt", "publish", {
       topic: this.config.command_topic,
       payload: command,
@@ -407,6 +415,7 @@ class RobotJoystickCard extends HTMLElement {
       const elapsed = (now - loopStart) % duration;
       const progress = elapsed / duration;
       const percent = Math.max(0, Math.min(100, progress * 100));
+
       this.statusEls.grassCut.style.width = `${percent}%`;
       this._grassTimer = requestAnimationFrame(animate);
     };
@@ -419,6 +428,7 @@ class RobotJoystickCard extends HTMLElement {
       cancelAnimationFrame(this._grassTimer);
       this._grassTimer = null;
     }
+
     if (this.statusEls?.grassCut && reset) {
       this.statusEls.grassCut.style.width = "0%";
     }
@@ -461,70 +471,6 @@ class RobotJoystickCard extends HTMLElement {
       5: "Custom",
     };
     return map[Number(action)] || "Custom";
-  }
-
-  _iconStart() {
-    return `
-      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
-        <path d="M8 6L18 12L8 18Z" fill="currentColor"></path>
-      </svg>
-    `;
-  }
-
-  _iconStop() {
-    return `
-      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
-        <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"></rect>
-      </svg>
-    `;
-  }
-
-  _iconExitDock() {
-    return `
-      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
-        <path d="M4 17H14" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-        <path d="M6 17V13H12V17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-        <path d="M13 7H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-        <path d="M16 4L20 7L16 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-      </svg>
-    `;
-  }
-
-  _iconDock() {
-    return `
-      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
-        <path d="M5 11L12 5L19 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-        <path d="M7 10.5V18H17V10.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-        <path d="M10 18V14H14V18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-      </svg>
-    `;
-  }
-
-  _iconManual() {
-    return `
-      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
-        <path d="M7 10H17C19.2 10 21 11.8 21 14C21 16.2 19.2 18 17 18H7C4.8 18 3 16.2 3 14C3 11.8 4.8 10 7 10Z" stroke="currentColor" stroke-width="2" fill="none"></path>
-        <circle cx="9" cy="14" r="1.5" fill="currentColor"></circle>
-        <circle cx="15.5" cy="13" r="1.2" fill="currentColor"></circle>
-        <circle cx="18" cy="15" r="1.2" fill="currentColor"></circle>
-        <path d="M9 7V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-        <path d="M7 9H11" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-      </svg>
-    `;
-  }
-
-  _iconAuto() {
-    return `
-      <svg viewBox="0 0 24 24" class="btn-icon" aria-hidden="true">
-        <rect x="7" y="7" width="10" height="8" rx="2" stroke="currentColor" stroke-width="2" fill="none"></rect>
-        <circle cx="10" cy="11" r="1.2" fill="currentColor"></circle>
-        <circle cx="14" cy="11" r="1.2" fill="currentColor"></circle>
-        <path d="M12 3V7" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-        <path d="M9 18H15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-        <path d="M8 21L9.5 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-        <path d="M16 21L14.5 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-      </svg>
-    `;
   }
 
   _renderTimerRows() {
@@ -639,8 +585,17 @@ class RobotJoystickCard extends HTMLElement {
   }
 
   _bindJoystickPanelEvents(root) {
+    const topBtn = root.getElementById("joystick_btn");
     const closeBtn = root.getElementById("joystick_close_btn");
     const overlay = root.getElementById("joystick_overlay");
+
+    if (topBtn) {
+      topBtn.addEventListener("click", () => {
+        this.timerPanelOpen = false;
+        this.joystickPanelOpen = true;
+        this._updatePanels();
+      });
+    }
 
     if (closeBtn) {
       closeBtn.addEventListener("click", () => {
@@ -718,315 +673,480 @@ class RobotJoystickCard extends HTMLElement {
     if (joystickOverlay) joystickOverlay.classList.toggle("open", this.joystickPanelOpen);
   }
 
-  _openJoystickPanel() {
-    this.timerPanelOpen = false;
-    this.joystickPanelOpen = true;
-    this._updatePanels();
-  }
-
   _renderCard() {
-    this._ensureRuntimeState();
+    this.state = {
+      x: 0,
+      y: 0,
+      left: 0,
+      right: 0,
+      active: 0,
+    };
+
+    this.lastPublish = 0;
+
     const root = this.attachShadow({ mode: "open" });
 
     root.innerHTML = `
       <style>
-        :host {
-          display: block;
-        }
-
-        * {
-          box-sizing: border-box;
-        }
-
         ha-card {
           position: relative;
+          padding: 14px;
+          box-sizing: border-box;
+          user-select: none;
+          -webkit-user-select: none;
           overflow: hidden;
           border-radius: 22px;
-          padding: 14px;
           background:
-            radial-gradient(circle at top left, rgba(80,120,255,0.14), transparent 34%),
+            radial-gradient(circle at top left, rgba(80,120,255,0.12), transparent 32%),
             linear-gradient(180deg, rgba(18,22,30,0.96), rgba(10,12,17,0.98));
-          color: #fff;
         }
 
-        .wrap {
-          display: grid;
-          gap: 12px;
-        }
-
-        .title {
+        .title-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          font-size: 20px;
-          font-weight: 700;
+          margin-bottom: 12px;
         }
 
-        .title .dot {
-          width: 11px;
-          height: 11px;
-          border-radius: 999px;
+        .title {
+          font-size: 22px;
+          font-weight: 800;
+        }
+
+        .status-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
           background: #63ff88;
-          box-shadow: 0 0 12px rgba(99,255,136,0.9);
+          box-shadow: 0 0 14px rgba(99,255,136,0.9);
           flex: 0 0 auto;
         }
 
-        .top-actions {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 10px;
+        .section {
+          margin-bottom: 16px;
         }
 
         .panel-btn {
-          border: 0;
-          outline: none;
-          border-radius: 16px;
-          padding: 12px 14px;
-          font-size: 14px;
-          font-weight: 800;
+          width: 100%;
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 18px;
+          min-height: 66px;
+          background: linear-gradient(180deg, rgba(63,132,255,0.95), rgba(42,95,220,0.95));
           color: #fff;
+          font-size: 18px;
+          font-weight: 800;
           cursor: pointer;
-          background: linear-gradient(180deg, rgba(59,117,255,0.96), rgba(42,92,220,0.96));
-          border: 1px solid rgba(255,255,255,0.1);
-          transition: transform 0.16s ease;
+          transition: transform 0.08s ease;
         }
 
         .panel-btn:active {
           transform: scale(0.985);
         }
 
-        .main-view {
-          display: grid;
-          gap: 12px;
-        }
-
-        .hero-card {
+        .hero {
           position: relative;
-          min-height: 220px;
-          border-radius: 22px;
+          min-height: 405px;
+          border-radius: 24px;
           overflow: hidden;
-          background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.08);
-          padding: 12px;
-        }
-
-        .hero-stage {
-          position: relative;
-          width: 100%;
-          height: 150px;
-          border-radius: 18px;
-          overflow: hidden;
           background:
-            linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-          border: 1px solid rgba(255,255,255,0.07);
+            radial-gradient(circle at 50% 35%, rgba(255,200,80,0.08), transparent 35%),
+            linear-gradient(180deg, rgba(18,20,24,1) 0%, rgba(14,16,18,1) 100%);
         }
 
-        .grass-layer,
-        .grass-cut {
+        .hero-bg {
           position: absolute;
-          left: 16px;
-          right: 16px;
-          height: 26px;
-          bottom: 18px;
-          border-radius: 999px;
+          inset: 0;
+          background-image: url('${this.config.robot_image}');
+          background-size: cover;
+          background-repeat: no-repeat;
+          background-position: center center;
+          filter: saturate(0.95) contrast(1.02);
         }
 
-        .grass-layer {
-          background-image:
-            repeating-linear-gradient(
-              90deg,
-              rgba(120,255,140,0.72) 0px,
-              rgba(120,255,140,0.72) 2px,
-              transparent 2px,
-              transparent 10px
-            );
-          opacity: 0.72;
-        }
-
-        .grass-cut {
-          width: 0%;
-          overflow: hidden;
-          background-image:
-            radial-gradient(circle, rgba(230,255,236,0.95) 0 1.3px, transparent 1.5px);
-          background-size: 10px 10px;
-          opacity: 0.95;
-        }
-
-        .robot-img {
+        .hero-fade {
           position: absolute;
-          left: 50%;
-          bottom: 30px;
-          transform: translateX(-50%);
-          width: 170px;
-          max-width: 72%;
-          filter: drop-shadow(0 10px 20px rgba(0,0,0,0.38));
-          user-select: none;
+          inset: 0;
+          background:
+            linear-gradient(180deg, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.04) 30%, rgba(0,0,0,0.20) 100%);
           pointer-events: none;
         }
 
-        .hero-bottom {
-          margin-top: 12px;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
+        .info-chip {
+          position: absolute;
+          min-width: 92px;
+          max-width: 120px;
+          padding: 7px 9px;
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 12px;
+          background: rgba(20,20,22,0.52);
+          backdrop-filter: blur(6px);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+          z-index: 2;
         }
 
-        .mini-tile {
-          border-radius: 16px;
-          padding: 12px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.08);
+        .info-label {
+          font-size: 10px;
+          color: #aeb4bf;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          margin-bottom: 3px;
+          line-height: 1.1;
         }
 
-        .mini-label {
-          font-size: 12px;
-          opacity: 0.75;
-          margin-bottom: 6px;
-        }
-
-        .mini-value {
-          font-size: 22px;
-          font-weight: 800;
-          line-height: 1;
-        }
-
-        .mode-panel {
-          border-radius: 18px;
-          padding: 12px;
-          background: rgba(80,130,255,0.12);
-          border: 1px solid rgba(80,130,255,0.22);
-        }
-
-        .mode-panel.off {
-          background: rgba(255,255,255,0.05);
-          border-color: rgba(255,255,255,0.08);
-        }
-
-        .mode-title {
-          font-size: 17px;
-          font-weight: 800;
-          margin-bottom: 4px;
-        }
-
-        .mode-sub {
+        .info-value {
           font-size: 13px;
-          opacity: 0.85;
+          font-weight: 800;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          line-height: 1.2;
+          word-break: break-word;
         }
 
-        .battery-row {
+        .chip-battery { top: 12px; left: 12px; }
+        .chip-loop    { left: 12px; bottom: 78px; }
+        .chip-amps    { right: 12px; bottom: 78px; min-width: 120px; max-width: 132px; text-align: center; }
+
+        .battery-line {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
+          gap: 6px;
+          width: 100%;
+        }
+
+        .battery-icon {
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
         }
 
         .battery-shell {
-          position: relative;
-          width: 50px;
-          height: 22px;
-          border: 2px solid rgba(255,255,255,0.92);
+          width: 46px;
+          height: 21px;
+          border: 2px solid #a1a1a1;
           border-radius: 6px;
+          background: #e2e2e2;
           padding: 2px;
-          display: flex;
-          align-items: center;
-          background: rgba(255,255,255,0.04);
-        }
-
-        .battery-tip {
-          position: absolute;
-          right: -6px;
-          top: 50%;
-          width: 4px;
-          height: 10px;
-          transform: translateY(-50%);
-          border-radius: 0 3px 3px 0;
-          background: rgba(255,255,255,0.9);
+          box-sizing: border-box;
         }
 
         .battery-bars {
+          width: 100%;
+          height: 100%;
           display: grid;
           grid-template-columns: repeat(5, 1fr);
           gap: 2px;
-          width: 100%;
-          height: 100%;
         }
 
         .battery-bar {
           border-radius: 2px;
-          background: rgba(255,255,255,0.14);
+          background: #bbbbbb;
         }
 
-        .battery-bar.on {
-          background: linear-gradient(180deg, #7dff9d, #2adf68);
+        .battery-bar.active {
+          background: #24c95b;
         }
 
-        .battery-shell.mid .battery-bar.on {
-          background: linear-gradient(180deg, #ffe66d, #ffbb33);
+        .battery-icon.mid .battery-bar.active {
+          background: #e8b21f;
         }
 
-        .battery-shell.low .battery-bar.on {
-          background: linear-gradient(180deg, #ff8d8d, #ff4f4f);
+        .battery-icon.low .battery-bar.active {
+          background: #ff4d4d;
         }
 
-        .commands {
+        .battery-tip {
+          width: 4px;
+          height: 10px;
+          background: #a1a1a1;
+          border-radius: 0 3px 3px 0;
+          margin-left: 2px;
+        }
+
+        .mow-panel {
+          position: absolute;
+          left: 12px;
+          right: 12px;
+          bottom: 12px;
+          height: 58px;
+          border-radius: 18px;
+          background: linear-gradient(90deg, #f18f00 0%, #ff9800 100%);
+          color: #fff;
+          box-shadow: 0 10px 25px rgba(255,140,0,0.28);
+          overflow: hidden;
+          z-index: 2;
+        }
+
+        .mow-panel.off {
+          background: linear-gradient(90deg, #444b57 0%, #59606d 100%);
+          box-shadow: none;
+        }
+
+        .mow-text {
+          position: absolute;
+          left: 14px;
+          top: 8px;
+          font-size: 16px;
+          font-weight: 800;
+          z-index: 3;
+          line-height: 1.1;
+        }
+
+        .mow-sub {
+          position: absolute;
+          left: 14px;
+          bottom: 8px;
+          font-size: 11px;
+          opacity: 0.95;
+          z-index: 3;
+          line-height: 1.1;
+        }
+
+        .grass-track {
+          position: absolute;
+          left: 132px;
+          right: 8px;
+          top: 8px;
+          bottom: 8px;
+          border-radius: 14px;
+          overflow: hidden;
+          z-index: 1;
+          background: rgba(255,255,255,0.03);
+        }
+
+        .grass-tall {
+          position: absolute;
+          inset: 0;
+          background:
+            repeating-linear-gradient(
+              90deg,
+              transparent 0px,
+              transparent 4px,
+              rgba(255,255,255,0.35) 4px,
+              rgba(255,255,255,0.35) 6px,
+              transparent 6px,
+              transparent 10px
+            );
+          mask-image: linear-gradient(
+            to top,
+            transparent 0%,
+            rgba(0,0,0,1) 18%,
+            rgba(0,0,0,1) 100%
+          );
+          -webkit-mask-image: linear-gradient(
+            to top,
+            transparent 0%,
+            rgba(0,0,0,1) 18%,
+            rgba(0,0,0,1) 100%
+          );
+          opacity: 0.95;
+        }
+
+        .grass-cut {
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 0%;
+          overflow: hidden;
+          background:
+            radial-gradient(circle, rgba(255,255,255,0.28) 0 1.2px, transparent 1.3px);
+          background-size: 8px 8px;
+          background-position: 0 78%;
+          mask-image: linear-gradient(
+            to top,
+            transparent 0%,
+            rgba(0,0,0,1) 10%,
+            rgba(0,0,0,1) 24%,
+            transparent 25%
+          );
+          -webkit-mask-image: linear-gradient(
+            to top,
+            transparent 0%,
+            rgba(0,0,0,1) 10%,
+            rgba(0,0,0,1) 24%,
+            transparent 25%
+          );
+          transition: width 0.06s linear;
+        }
+
+        .mower-mini {
+          position: absolute;
+          top: 50%;
+          left: -62px;
+          transform: translateY(-50%);
+          width: 56px;
+          height: 30px;
+          animation: robotPass 4.8s linear infinite;
+          z-index: 2;
+        }
+
+        .mow-panel.off .mower-mini {
+          animation: none;
+          left: 10px;
+        }
+
+        .mower-mini .rear-wheel {
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #d4a53a;
+          border: 2px solid rgba(0,0,0,0.45);
+          box-sizing: border-box;
+        }
+
+        .mower-mini .rear-wheel::after {
+          content: "";
+          position: absolute;
+          inset: 5px;
+          border-radius: 50%;
+          border: 1px solid rgba(0,0,0,0.35);
+        }
+
+        .mower-mini .wheel-guard {
+          position: absolute;
+          left: -2px;
+          bottom: 11px;
+          width: 27px;
+          height: 10px;
+          border-radius: 14px 14px 0 0;
+          border-top: 3px solid #d4a53a;
+          border-left: 2px solid #d4a53a;
+          border-right: 2px solid #d4a53a;
+          background: transparent;
+          transform: rotate(-2deg);
+        }
+
+        .mower-mini .body {
+          position: absolute;
+          left: 18px;
+          bottom: 6px;
+          width: 30px;
+          height: 12px;
+          background: #d4a53a;
+          border-radius: 6px 10px 4px 4px;
+        }
+
+        .mower-mini .body-top {
+          position: absolute;
+          left: 22px;
+          bottom: 14px;
+          width: 24px;
+          height: 9px;
+          background: #d4a53a;
+          border-radius: 5px 7px 3px 3px;
+        }
+
+        .mower-mini .front-arm {
+          position: absolute;
+          left: 43px;
+          bottom: 9px;
+          width: 10px;
+          height: 6px;
+          background: #8d8d8d;
+          border-radius: 2px;
+        }
+
+        .mower-mini .front-wheel {
+          position: absolute;
+          right: 0;
+          bottom: 1px;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #d98c2e;
+          border: 2px solid rgba(0,0,0,0.45);
+          box-sizing: border-box;
+        }
+
+        .mower-mini .sensor-head {
+          position: absolute;
+          left: 30px;
+          bottom: 20px;
+          width: 11px;
+          height: 6px;
+          background: #e7e2d8;
+          border-radius: 2px 2px 0 0;
+          border: 1px solid rgba(0,0,0,0.18);
+          box-sizing: border-box;
+        }
+
+        .mower-mini .trim-cut {
+          position: absolute;
+          left: 18px;
+          bottom: 2px;
+          width: 26px;
+          height: 2px;
+          background: rgba(255,255,255,0.35);
+          border-radius: 2px;
+        }
+
+        @keyframes robotPass {
+          0%   { left: -62px; }
+          100% { left: calc(100% - 4px); }
+        }
+
+        .button-grid-4 {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+        }
+
+        .button-grid-2 {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 10px;
+        }
+
+        .button-grid-bottom {
+          display: grid;
+          grid-template-columns: 1fr;
           gap: 10px;
         }
 
         .cmd-btn {
-          border: 0;
-          outline: none;
+          border: 1px solid rgba(255,255,255,0.10);
           border-radius: 18px;
-          padding: 12px 8px;
-          color: #fff;
-          cursor: pointer;
-          background: rgba(255,255,255,0.07);
-          border: 1px solid rgba(255,255,255,0.08);
-          transition: transform 0.16s ease, background 0.16s ease;
-          display: grid;
-          gap: 6px;
+          background: rgba(255,255,255,0.03);
+          min-height: 82px;
+          display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-items: center;
-          min-height: 74px;
+          justify-content: center;
+          gap: 8px;
+          cursor: pointer;
+          transition: transform 0.08s ease, background 0.2s ease;
+          font-weight: 700;
+          text-align: center;
+          padding: 8px;
+          box-sizing: border-box;
         }
 
         .cmd-btn:active {
           transform: scale(0.98);
         }
 
-        .cmd-btn.primary {
-          background: linear-gradient(180deg, rgba(63,132,255,0.95), rgba(42,95,220,0.95));
+        .cmd-btn:hover {
+          background: rgba(255,255,255,0.06);
         }
 
-        .cmd-btn.warn {
-          background: linear-gradient(180deg, rgba(255,109,109,0.95), rgba(209,62,62,0.95));
+        .cmd-btn ha-icon {
+          --mdc-icon-size: 34px;
         }
 
-        .cmd-btn.accent {
-          background: linear-gradient(180deg, rgba(46,204,113,0.95), rgba(24,155,82,0.95));
-        }
-
-        .btn-icon {
-          width: 24px;
-          height: 24px;
-          display: block;
-          color: currentColor;
-        }
-
-        .cmd-btn .label {
-          font-size: 13px;
-          font-weight: 800;
-          line-height: 1.1;
-          text-align: center;
-        }
-
-        .bottom-actions {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
+        .green ha-icon { color: #29c34a; }
+        .red ha-icon { color: #ff3b30; }
+        .blue ha-icon { color: #2f6bff; }
+        .purple ha-icon { color: #b000d4; }
+        .white ha-icon { color: #f2f2f2; }
+        .orange ha-icon { color: #f7a600; }
 
         .overlay {
           position: absolute;
@@ -1096,93 +1216,112 @@ class RobotJoystickCard extends HTMLElement {
           margin-bottom: 12px;
         }
 
-        .joystick-stage {
-          display: grid;
-          gap: 12px;
-        }
-
-        .pad-card {
-          border-radius: 22px;
-          padding: 12px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.08);
+        .top-wrap {
+          display: flex;
+          justify-content: center;
+          align-items: center;
         }
 
         .pad {
           position: relative;
-          width: 100%;
-          aspect-ratio: 1 / 1;
-          border-radius: 24px;
-          overflow: hidden;
+          width: 260px;
+          height: 260px;
+          border-radius: 50%;
           background:
-            radial-gradient(circle at center, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 48%, transparent 49%),
-            linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
-          border: 1px solid rgba(255,255,255,0.08);
+            radial-gradient(circle at center, rgba(255,255,255,0.04) 0 24%, transparent 25%),
+            radial-gradient(circle at center, rgba(255,255,255,0.03) 0 62%, rgba(255,255,255,0.07) 63%, transparent 64%),
+            rgba(255,255,255,0.02);
+          overflow: hidden;
           touch-action: none;
+          border: 1px solid rgba(255,255,255,0.06);
+          box-shadow: inset 0 0 40px rgba(255,255,255,0.03);
         }
 
-        .pad::before,
-        .pad::after {
-          content: "";
+        .cross-h,
+        .cross-v {
           position: absolute;
-          background: rgba(255,255,255,0.08);
+          background: rgba(255,255,255,0.06);
         }
 
-        .pad::before {
-          left: 50%;
-          top: 10px;
-          bottom: 10px;
-          width: 1px;
-          transform: translateX(-50%);
-        }
-
-        .pad::after {
+        .cross-h {
+          left: 14%;
+          right: 14%;
           top: 50%;
-          left: 10px;
-          right: 10px;
           height: 1px;
           transform: translateY(-50%);
         }
 
+        .cross-v {
+          top: 14%;
+          bottom: 14%;
+          left: 50%;
+          width: 1px;
+          transform: translateX(-50%);
+        }
+
+        .arrow {
+          position: absolute;
+          width: 0;
+          height: 0;
+          opacity: 0.85;
+        }
+
+        .arrow.up {
+          left: 50%;
+          top: 18px;
+          transform: translateX(-50%);
+          border-left: 10px solid transparent;
+          border-right: 10px solid transparent;
+          border-bottom: 18px solid #a7a7c7;
+        }
+
+        .arrow.down {
+          left: 50%;
+          bottom: 18px;
+          transform: translateX(-50%);
+          border-left: 10px solid transparent;
+          border-right: 10px solid transparent;
+          border-top: 18px solid #a7a7c7;
+        }
+
+        .arrow.left {
+          top: 50%;
+          left: 18px;
+          transform: translateY(-50%);
+          border-top: 10px solid transparent;
+          border-bottom: 10px solid transparent;
+          border-right: 18px solid #a7a7c7;
+        }
+
+        .arrow.right {
+          top: 50%;
+          right: 18px;
+          transform: translateY(-50%);
+          border-top: 10px solid transparent;
+          border-bottom: 10px solid transparent;
+          border-left: 18px solid #a7a7c7;
+        }
+
         .knob {
           position: absolute;
-          top: 50%;
           left: 50%;
-          width: 56px;
-          height: 56px;
+          top: 50%;
+          width: 70px;
+          height: 70px;
           border-radius: 50%;
           transform: translate(-50%, -50%);
-          background:
-            radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.18) 35%, rgba(68,130,255,0.85));
+          background: #a8acc6;
           box-shadow:
-            0 8px 18px rgba(0,0,0,0.3),
-            0 0 0 1px rgba(255,255,255,0.25) inset;
-          z-index: 2;
-          pointer-events: none;
+            0 0 0 12px rgba(255,255,255,0.03),
+            0 6px 20px rgba(0,0,0,0.35);
         }
 
-        .joy-values {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 10px;
-        }
-
-        .joy-box {
-          border-radius: 16px;
-          padding: 12px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-
-        .joy-box .k {
-          font-size: 12px;
-          opacity: 0.74;
-          margin-bottom: 6px;
-        }
-
-        .joy-box .v {
-          font-size: 18px;
-          font-weight: 800;
+        .telemetry {
+          text-align: center;
+          margin-top: 12px;
+          line-height: 1.7;
+          font-size: 14px;
+          color: var(--secondary-text-color);
         }
 
         .timer-list {
@@ -1265,13 +1404,144 @@ class RobotJoystickCard extends HTMLElement {
           text-align: center;
         }
 
-        @media (max-width: 760px) {
-          .hero-bottom {
-            grid-template-columns: 1fr;
+        @media (max-width: 700px) {
+          .hero {
+            min-height: 340px;
           }
 
-          .commands {
-            grid-template-columns: repeat(3, 1fr);
+          .pad {
+            width: 220px;
+            height: 220px;
+          }
+
+          .button-grid-4 {
+            grid-template-columns: repeat(2, 1fr);
+          }
+
+          .info-chip {
+            min-width: 78px;
+            max-width: 104px;
+            padding: 6px 8px;
+            border-radius: 10px;
+          }
+
+          .info-label {
+            font-size: 9px;
+          }
+
+          .info-value {
+            font-size: 11px;
+            gap: 4px;
+          }
+
+          .chip-battery {
+            top: 10px;
+            left: 8px;
+          }
+
+          .chip-loop {
+            left: 8px;
+            bottom: 72px;
+          }
+
+          .chip-amps {
+            right: 8px;
+            bottom: 72px;
+            min-width: 86px;
+            max-width: 96px;
+          }
+
+          .battery-shell {
+            width: 36px;
+            height: 18px;
+            padding: 2px;
+          }
+
+          .battery-tip {
+            width: 4px;
+            height: 8px;
+            margin-left: 2px;
+          }
+
+          .mow-panel {
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            height: 52px;
+            border-radius: 14px;
+          }
+
+          .mow-text {
+            left: 12px;
+            top: 7px;
+            font-size: 15px;
+          }
+
+          .mow-sub {
+            left: 12px;
+            bottom: 7px;
+            font-size: 10px;
+          }
+
+          .grass-track {
+            left: 112px;
+            right: 8px;
+            top: 7px;
+            bottom: 7px;
+          }
+
+          .mower-mini {
+            width: 44px;
+            height: 24px;
+            left: -50px;
+          }
+
+          .mower-mini .rear-wheel {
+            width: 19px;
+            height: 19px;
+          }
+
+          .mower-mini .wheel-guard {
+            width: 22px;
+            bottom: 9px;
+          }
+
+          .mower-mini .body {
+            left: 14px;
+            width: 24px;
+            height: 10px;
+            bottom: 5px;
+          }
+
+          .mower-mini .body-top {
+            left: 17px;
+            width: 19px;
+            height: 7px;
+            bottom: 12px;
+          }
+
+          .mower-mini .front-arm {
+            left: 34px;
+            width: 8px;
+            height: 5px;
+            bottom: 8px;
+          }
+
+          .mower-mini .front-wheel {
+            width: 10px;
+            height: 10px;
+          }
+
+          .mower-mini .sensor-head {
+            left: 23px;
+            width: 9px;
+            height: 5px;
+            bottom: 17px;
+          }
+
+          .mower-mini .trim-cut {
+            left: 14px;
+            width: 20px;
           }
 
           .timer-grid {
@@ -1281,87 +1551,91 @@ class RobotJoystickCard extends HTMLElement {
       </style>
 
       <ha-card>
-        <div class="wrap">
-          <div class="title">
-            <span>${this.config.title}</span>
-            <span class="dot"></span>
+        <div class="title-row">
+          <div class="title">${this.config.title}</div>
+          <div class="status-dot"></div>
+        </div>
+
+        <div class="section">
+          <button class="panel-btn" id="joystick_btn">Joystick</button>
+        </div>
+
+        <div class="section hero">
+          <div class="hero-bg"></div>
+          <div class="hero-fade"></div>
+
+          <div class="info-chip chip-battery">
+            <div class="info-label">Battery</div>
+            <div class="info-value battery-line">
+              <span id="battery_pct">0%</span>
+              <span id="battery_icon">${this._renderBatteryIcon(0)}</span>
+            </div>
           </div>
 
-          <div class="top-actions">
-            <button class="panel-btn" id="joystick_btn_top">Joystick</button>
+          <div class="info-chip chip-loop">
+            <div class="info-label">Loop</div>
+            <div class="info-value" id="loop_val">-</div>
           </div>
 
-          <div class="main-view">
-            <div class="hero-card">
-              <div class="hero-stage">
-                <div class="grass-layer"></div>
-                <div class="grass-cut" id="grass_cut"></div>
-                <img class="robot-img" src="${this.config.robot_image}" alt="Robot">
+          <div class="info-chip chip-amps">
+            <div class="info-label">Bat Amps</div>
+            <div class="info-value" id="battery_amps_val">-</div>
+          </div>
+
+          <div class="mow-panel off" id="mow_panel">
+            <div class="mow-text" id="mow_text">Idle</div>
+            <div class="mow-sub" id="mow_sub">In attesa</div>
+
+            <div class="grass-track">
+              <div class="grass-tall"></div>
+              <div class="grass-cut" id="grass_cut"></div>
+
+              <div class="mower-mini">
+                <div class="rear-wheel"></div>
+                <div class="wheel-guard"></div>
+                <div class="body"></div>
+                <div class="body-top"></div>
+                <div class="front-arm"></div>
+                <div class="front-wheel"></div>
+                <div class="sensor-head"></div>
+                <div class="trim-cut"></div>
               </div>
-
-              <div class="hero-bottom">
-                <div class="mini-tile">
-                  <div class="mini-label">Battery</div>
-                  <div class="battery-row">
-                    <div class="mini-value" id="battery_pct">0%</div>
-                    <div id="battery_icon">${this._renderBatteryIcon(0)}</div>
-                  </div>
-                </div>
-
-                <div class="mini-tile">
-                  <div class="mini-label">Loop</div>
-                  <div class="mini-value" id="loop_val">-</div>
-                </div>
-
-                <div class="mini-tile">
-                  <div class="mini-label">Amp</div>
-                  <div class="mini-value" id="battery_amps_val">-</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="mode-panel" id="mow_panel">
-              <div class="mode-title" id="mow_text">Idle</div>
-              <div class="mode-sub" id="mow_sub">In attesa</div>
-            </div>
-
-            <div class="commands">
-              <button class="cmd-btn primary" data-command="start">
-                ${this._iconStart()}
-                <span class="label">Start</span>
-              </button>
-
-              <button class="cmd-btn warn" data-command="stop">
-                ${this._iconStop()}
-                <span class="label">Stop</span>
-              </button>
-
-              <button class="cmd-btn accent" data-command="exit_dock">
-                ${this._iconExitDock()}
-                <span class="label">Exit Dock</span>
-              </button>
-
-              <button class="cmd-btn" data-command="dock">
-                ${this._iconDock()}
-                <span class="label">Dock</span>
-              </button>
-
-              <button class="cmd-btn" data-command="manual_mode">
-                ${this._iconManual()}
-                <span class="label">Manual</span>
-              </button>
-
-              <button class="cmd-btn" data-command="auto_mode">
-                ${this._iconAuto()}
-                <span class="label">Auto</span>
-              </button>
-            </div>
-
-            <div class="bottom-actions">
-              <button class="panel-btn" id="timer_btn">Timer</button>
-              <button class="panel-btn" id="joystick_btn_bottom">Joystick</button>
             </div>
           </div>
+        </div>
+
+        <div class="section button-grid-4">
+          <div class="cmd-btn green" data-command="start">
+            <ha-icon icon="mdi:play"></ha-icon>
+            <div>Start</div>
+          </div>
+          <div class="cmd-btn red" data-command="stop">
+            <ha-icon icon="mdi:stop"></ha-icon>
+            <div>Stop</div>
+          </div>
+          <div class="cmd-btn blue" data-command="exit_dock">
+            <ha-icon icon="mdi:home-export-outline"></ha-icon>
+            <div>Exit Dock</div>
+          </div>
+          <div class="cmd-btn purple" data-command="dock">
+            <ha-icon icon="mdi:home"></ha-icon>
+            <div>Dock</div>
+          </div>
+        </div>
+
+        <div class="section button-grid-2">
+          <div class="cmd-btn white" data-command="manual_mode">
+            <ha-icon icon="mdi:gamepad"></ha-icon>
+            <div>Manual Mode</div>
+          </div>
+          <div class="cmd-btn orange" data-command="auto_mode">
+            <ha-icon icon="mdi:robot-mower"></ha-icon>
+            <div>Automatic Mode</div>
+          </div>
+        </div>
+
+        <div class="section button-grid-bottom">
+          <button class="panel-btn" id="timer_btn">Timer</button>
         </div>
 
         <div class="overlay" id="joystick_overlay"></div>
@@ -1377,22 +1651,21 @@ class RobotJoystickCard extends HTMLElement {
             Muovi il joystick per comandare il robot e premi X per tornare alla card principale.
           </div>
 
-          <div class="joystick-stage">
-            <div class="pad-card">
+          <div class="top-wrap">
+            <div>
               <div class="pad" id="pad">
+                <div class="cross-h"></div>
+                <div class="cross-v"></div>
+                <div class="arrow up"></div>
+                <div class="arrow down"></div>
+                <div class="arrow left"></div>
+                <div class="arrow right"></div>
                 <div class="knob" id="knob"></div>
               </div>
-            </div>
 
-            <div class="joy-values">
-              <div class="joy-box">
-                <div class="k">Joystick</div>
-                <div class="v">X: <span id="xv">0</span> | Y: <span id="yv">0</span></div>
-              </div>
-
-              <div class="joy-box">
-                <div class="k">Motori</div>
-                <div class="v">L: <span id="lv">0</span> | R: <span id="rv">0</span></div>
+              <div class="telemetry">
+                <div>X: <span id="xv">0</span> | Y: <span id="yv">0</span></div>
+                <div>LEFT: <span id="lv">0</span> | RIGHT: <span id="rv">0</span></div>
               </div>
             </div>
           </div>
@@ -1423,7 +1696,6 @@ class RobotJoystickCard extends HTMLElement {
     this.content = root.querySelector("ha-card");
     this.pad = root.getElementById("pad");
     this.knob = root.getElementById("knob");
-
     this.xv = root.getElementById("xv");
     this.yv = root.getElementById("yv");
     this.lv = root.getElementById("lv");
@@ -1441,21 +1713,11 @@ class RobotJoystickCard extends HTMLElement {
       timerSaveMsg: root.getElementById("timer_save_msg"),
     };
 
-    root.querySelectorAll(".cmd-btn[data-command]").forEach((btn) => {
+    root.querySelectorAll(".cmd-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         this._sendCommand(btn.dataset.command);
       });
     });
-
-    const joyTop = root.getElementById("joystick_btn_top");
-    const joyBottom = root.getElementById("joystick_btn_bottom");
-
-    if (joyTop) {
-      joyTop.addEventListener("click", () => this._openJoystickPanel());
-    }
-    if (joyBottom) {
-      joyBottom.addEventListener("click", () => this._openJoystickPanel());
-    }
 
     this._bindJoystickPanelEvents(root);
     this._bindTimerEvents(root);
@@ -1482,11 +1744,13 @@ class RobotJoystickCard extends HTMLElement {
     const stopDrag = (ev) => {
       if (!this.isDragging) return;
       this.isDragging = false;
+
       try {
         this.pad.releasePointerCapture(ev.pointerId);
       } catch (_error) {
         // ignore
       }
+
       this._reset();
     };
 
@@ -1513,6 +1777,7 @@ class RobotJoystickCard extends HTMLElement {
     this.statusEls.batteryIcon.innerHTML = this._renderBatteryIcon(batteryPct);
     this.statusEls.batteryAmps.textContent = batteryAmps;
     this.statusEls.loop.textContent = loop;
+
     this.statusEls.mowText.textContent = mode.label;
     this.statusEls.mowSub.textContent = mode.sublabel;
     this.statusEls.mowPanel.classList.toggle("off", mode.panelOff);
@@ -1531,6 +1796,7 @@ class RobotJoystickCard extends HTMLElement {
 
     let dx = clientX - cx;
     let dy = clientY - cy;
+
     const dist = Math.sqrt(dx * dx + dy * dy);
     const max = this.config.max_distance;
 
@@ -1573,7 +1839,14 @@ class RobotJoystickCard extends HTMLElement {
   }
 
   _reset() {
-    this.state = { x: 0, y: 0, left: 0, right: 0, active: 0 };
+    this.state = {
+      x: 0,
+      y: 0,
+      left: 0,
+      right: 0,
+      active: 0,
+    };
+
     if (this.knob) {
       this.knob.style.transform = "translate(-50%, -50%)";
     }
@@ -1613,7 +1886,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.0.6 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.0.7 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
