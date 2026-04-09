@@ -20,8 +20,8 @@ class RobotJoystickCard extends HTMLElement {
       timer_command_topic: "home/robot/mower/control/timers",
 
       max_distance: 110,
-      deadzone: 0.06,
-      publish_interval: 40,
+      deadzone: 0.18,
+      publish_interval: 250,
 
       battery_entity: "sensor.mower_battery",
       battery_amps_entity: "sensor.robotmowerbatteryamps",
@@ -108,6 +108,8 @@ class RobotJoystickCard extends HTMLElement {
     }
 
     if (!this.lastPublish) this.lastPublish = 0;
+    if (typeof this.lastDirection !== "string") this.lastDirection = "S";
+    if (typeof this.lastDirectionPublish !== "number") this.lastDirectionPublish = 0;
   }
 
   _storageKey() {
@@ -1789,6 +1791,20 @@ class RobotJoystickCard extends HTMLElement {
     }
   }
 
+  _getDirectionFromAxes(x, y) {
+    const threshold = 0.35;
+
+    if (Math.abs(x) < threshold && Math.abs(y) < threshold) {
+      return "S";
+    }
+
+    if (Math.abs(y) >= Math.abs(x)) {
+      return y > 0 ? "F" : "B";
+    }
+
+    return x > 0 ? "R" : "L";
+  }
+
   _move(clientX, clientY, force = false) {
     const rect = this.pad.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -1831,11 +1847,8 @@ class RobotJoystickCard extends HTMLElement {
     this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     this._refreshTelemetry();
 
-    const now = Date.now();
-    if (force || now - this.lastPublish >= this.config.publish_interval) {
-      this.lastPublish = now;
-      this._publishJoystick();
-    }
+    const direction = this._getDirectionFromAxes(x, y);
+    this._publishJoystick(direction, force);
   }
 
   _reset() {
@@ -1851,7 +1864,7 @@ class RobotJoystickCard extends HTMLElement {
       this.knob.style.transform = "translate(-50%, -50%)";
     }
     this._refreshTelemetry();
-    this._publishJoystick();
+    this._publishJoystick("S", true);
   }
 
   _refreshTelemetry() {
@@ -1861,12 +1874,24 @@ class RobotJoystickCard extends HTMLElement {
     if (this.rv) this.rv.textContent = this.state.right;
   }
 
-  _publishJoystick() {
+  _publishJoystick(direction = "S", force = false) {
     if (!this._hass) return;
+
+    const now = Date.now();
+
+    if (!force) {
+      const sameDirection = direction === this.lastDirection;
+      const tooSoon = now - this.lastDirectionPublish < this.config.publish_interval;
+
+      if (sameDirection && tooSoon) return;
+    }
+
+    this.lastDirection = direction;
+    this.lastDirectionPublish = now;
 
     this._hass.callService("mqtt", "publish", {
       topic: this.config.topic,
-      payload: JSON.stringify(this.state),
+      payload: direction,
       qos: 0,
       retain: false,
     });
