@@ -34,7 +34,7 @@ class RobotJoystickCard extends HTMLElement {
 
       robot_image: DEFAULT_ROBOT_IMAGE,
 
-      batt_min_voltage: 28.0,
+      batt_min_voltage: 26.4,
       batt_max_voltage: 33.6,
 
       timer_count: 6,
@@ -193,7 +193,7 @@ class RobotJoystickCard extends HTMLElement {
   }
 
   _getBatteryPercentage(voltage) {
-    const min = Number(this.config.batt_min_voltage ?? 28.0);
+    const min = Number(this.config.batt_min_voltage ?? 26.4);
     const max = Number(this.config.batt_max_voltage ?? 33.6);
     const value = Number(voltage);
 
@@ -239,30 +239,64 @@ class RobotJoystickCard extends HTMLElement {
     const parkedState = this._getState(this.config.parked_entity);
     const runningState = this._getState(this.config.running_entity);
     const trackingState = this._getState(this.config.tracking_entity);
+    const loopState = this._getState(this.config.loop_entity);
 
-    const charging =
-      this._normalizeState(chargeState) === "in carica" ||
-      this._normalizeState(dockedState) === "in base" ||
-      this._isTruthyState(chargeState) ||
-      this._isTruthyState(dockedState);
+    const chargeNorm = this._normalizeState(chargeState);
+    const dockedNorm = this._normalizeState(dockedState);
+    const parkedNorm = this._normalizeState(parkedState);
+    const runningNorm = this._normalizeState(runningState);
+    const trackingNorm = this._normalizeState(trackingState);
 
+    const loopNum = parseInt(loopState, 10);
+
+    const charging = chargeNorm === "in carica";
+    const docked = dockedNorm === "in base";
     const parked =
-      this._normalizeState(parkedState) === "parcheggiato" ||
-      this._isTruthyState(parkedState);
+      parkedNorm === "parcheggiato" || this._isTruthyState(parkedState);
 
-    const mowing =
-      this._normalizeState(runningState) === "falciatura" ||
-      this._isTruthyState(runningState);
+    const searchingWire = loopNum === 111 || loopNum === 222;
 
     const tracking =
-      this._normalizeState(trackingState) === "tracciatura filo" ||
-      this._isTruthyState(trackingState);
+      trackingNorm === "tracciatura filo" || this._isTruthyState(trackingState);
+
+    const mowing =
+      runningNorm === "falciatura" || this._isTruthyState(runningState);
 
     if (charging) {
       return {
         code: "charging",
         label: "In carica",
         sublabel: "Robot in base",
+        animate: false,
+        panelOff: true,
+      };
+    }
+
+    if (docked) {
+      return {
+        code: "docked",
+        label: "In base",
+        sublabel: "In attesa di ricarica",
+        animate: false,
+        panelOff: true,
+      };
+    }
+
+    if (searchingWire) {
+      return {
+        code: "searching_wire",
+        label: "Tracking",
+        sublabel: "Ricerca filo",
+        animate: false,
+        panelOff: true,
+      };
+    }
+
+    if (tracking) {
+      return {
+        code: "tracking",
+        label: "Tracking",
+        sublabel: "Tracciatura filo",
         animate: false,
         panelOff: true,
       };
@@ -285,16 +319,6 @@ class RobotJoystickCard extends HTMLElement {
         sublabel: "Robot in lavoro",
         animate: true,
         panelOff: false,
-      };
-    }
-
-    if (tracking) {
-      return {
-        code: "tracking",
-        label: "Tracking",
-        sublabel: "Tracciatura filo",
-        animate: false,
-        panelOff: true,
       };
     }
 
@@ -1911,7 +1935,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.0.7 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.0.8 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
