@@ -249,8 +249,9 @@ class RobotJoystickCard extends HTMLElement {
 
     const loopNum = parseInt(loopState, 10);
 
-    const charging = chargeNorm === "in carica";
     const docked = dockedNorm === "in base";
+    const charging = docked && chargeNorm === "in carica";
+
     const parked =
       parkedNorm === "parcheggiato" || this._isTruthyState(parkedState);
 
