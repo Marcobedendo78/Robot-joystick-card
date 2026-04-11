@@ -21,7 +21,8 @@ class RobotJoystickCard extends HTMLElement {
 
       max_distance: 110,
       deadzone: 0.18,
-      publish_interval: 250,
+      publish_interval: 100,
+      speed_step: 10,
 
       battery_entity: "sensor.mower_battery",
       battery_amps_entity: "sensor.robotmowerbatteryamps",
@@ -108,8 +109,7 @@ class RobotJoystickCard extends HTMLElement {
     }
 
     if (!this.lastPublish) this.lastPublish = 0;
-    if (typeof this.lastDirection !== "string") this.lastDirection = "S";
-    if (typeof this.lastDirectionPublish !== "number") this.lastDirectionPublish = 0;
+    if (typeof this.lastPayload !== "string") this.lastPayload = "";
   }
 
   _storageKey() {
@@ -427,6 +427,15 @@ class RobotJoystickCard extends HTMLElement {
     return fallback;
   }
 
+  _clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  _quantize(value, step = 10) {
+    const s = Math.max(1, Number(step) || 10);
+    return Math.round(value / s) * s;
+  }
+
   _startGrassAnimation() {
     if (this._grassTimer || !this.statusEls?.grassCut) return;
 
@@ -710,6 +719,7 @@ class RobotJoystickCard extends HTMLElement {
     };
 
     this.lastPublish = 0;
+    this.lastPayload = "";
 
     const root = this.attachShadow({ mode: "open" });
 
@@ -1816,20 +1826,6 @@ class RobotJoystickCard extends HTMLElement {
     }
   }
 
-  _getDirectionFromAxes(x, y) {
-    const threshold = 0.35;
-
-    if (Math.abs(x) < threshold && Math.abs(y) < threshold) {
-      return "S";
-    }
-
-    if (Math.abs(y) >= Math.abs(x)) {
-      return y > 0 ? "F" : "B";
-    }
-
-    return x > 0 ? "R" : "L";
-  }
-
   _move(clientX, clientY, force = false) {
     const rect = this.pad.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -1852,28 +1848,43 @@ class RobotJoystickCard extends HTMLElement {
     if (Math.abs(x) < this.config.deadzone) x = 0;
     if (Math.abs(y) < this.config.deadzone) y = 0;
 
-    x = Math.max(-1, Math.min(1, x));
-    y = Math.max(-1, Math.min(1, y));
+    x = this._clamp(x, -1, 1);
+    y = this._clamp(y, -1, 1);
 
     let left = y + x;
     let right = y - x;
 
-    left = Math.max(-1, Math.min(1, left));
-    right = Math.max(-1, Math.min(1, right));
+    left = this._clamp(left, -1, 1);
+    right = this._clamp(right, -1, 1);
+
+    let leftPct = Math.round(left * 100);
+    let rightPct = Math.round(right * 100);
+    let xPct = Math.round(x * 100);
+    let yPct = Math.round(y * 100);
+
+    const step = Number(this.config.speed_step || 10);
+
+    leftPct = this._quantize(leftPct, step);
+    rightPct = this._quantize(rightPct, step);
+    xPct = this._quantize(xPct, step);
+    yPct = this._quantize(yPct, step);
+
+    leftPct = this._clamp(leftPct, -100, 100);
+    rightPct = this._clamp(rightPct, -100, 100);
+    xPct = this._clamp(xPct, -100, 100);
+    yPct = this._clamp(yPct, -100, 100);
 
     this.state = {
-      x: Math.round(x * 100),
-      y: Math.round(y * 100),
-      left: Math.round(left * 100),
-      right: Math.round(right * 100),
+      x: xPct,
+      y: yPct,
+      left: leftPct,
+      right: rightPct,
       active: 1,
     };
 
     this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     this._refreshTelemetry();
-
-    const direction = this._getDirectionFromAxes(x, y);
-    this._publishJoystick(direction, force);
+    this._publishJoystick(force);
   }
 
   _reset() {
@@ -1888,8 +1899,9 @@ class RobotJoystickCard extends HTMLElement {
     if (this.knob) {
       this.knob.style.transform = "translate(-50%, -50%)";
     }
+
     this._refreshTelemetry();
-    this._publishJoystick("S", true);
+    this._publishJoystick(true);
   }
 
   _refreshTelemetry() {
@@ -1899,24 +1911,36 @@ class RobotJoystickCard extends HTMLElement {
     if (this.rv) this.rv.textContent = this.state.right;
   }
 
-  _publishJoystick(direction = "S", force = false) {
+  _publishJoystick(force = false) {
     if (!this._hass) return;
 
     const now = Date.now();
 
-    if (!force) {
-      const sameDirection = direction === this.lastDirection;
-      const tooSoon = now - this.lastDirectionPublish < this.config.publish_interval;
+    const payloadObj = {
+      type: "joystick",
+      x: this.state.x,
+      y: this.state.y,
+      left: this.state.left,
+      right: this.state.right,
+      active: this.state.active,
+    };
 
-      if (sameDirection && tooSoon) return;
+    const payload = JSON.stringify(payloadObj);
+
+    if (!force) {
+      const tooSoon = now - this.lastPublish < this.config.publish_interval;
+      const samePayload = payload === this.lastPayload;
+
+      if (tooSoon && samePayload) return;
+      if (samePayload) return;
     }
 
-    this.lastDirection = direction;
-    this.lastDirectionPublish = now;
+    this.lastPublish = now;
+    this.lastPayload = payload;
 
     this._hass.callService("mqtt", "publish", {
       topic: this.config.topic,
-      payload: direction,
+      payload,
       qos: 0,
       retain: false,
     });
@@ -1936,7 +1960,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.0.8 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.1.0 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
