@@ -24,14 +24,14 @@ class RobotJoystickCard extends HTMLElement {
       publish_interval: 100,
       speed_step: 10,
 
-      battery_entity: "sensor.robotmowerbattery",
+      battery_entity: "sensor.mower_battery",
       battery_amps_entity: "sensor.robotmowerbatteryamps",
-      charge_entity: "sensor.mowercharge",
-      loop_entity: "sensor.mowerloop",
-      running_entity: "sensor.mowerrunning",
-      parked_entity: "sensor.mowerparked",
-      docked_entity: "sensor.mowerdocked",
-      tracking_entity: "sensor.mowertracking",
+      charge_entity: "sensor.mower_charge",
+      loop_entity: "sensor.mower_loop",
+      running_entity: "sensor.mower_running",
+      parked_entity: "sensor.mower_parked",
+      docked_entity: "sensor.mower_docked",
+      tracking_entity: "sensor.mower_tracking",
 
       robot_image: DEFAULT_ROBOT_IMAGE,
 
