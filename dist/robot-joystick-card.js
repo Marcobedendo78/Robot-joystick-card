@@ -22,7 +22,7 @@ class RobotJoystickCard extends HTMLElement {
       max_distance: 110,
       deadzone: 0.18,
       publish_interval: 100,
-      hold_publish_interval: 800,
+      hold_publish_interval: 1800,
       speed_step: 10,
 
       battery_entity: "sensor.mower_battery",
