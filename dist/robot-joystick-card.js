@@ -94,6 +94,7 @@ class RobotJoystickCard extends HTMLElement {
 
   disconnectedCallback() {
     this._stopGrassAnimation(true);
+    this._stopJoystickPublishLoop();
   }
 
   _ensureRuntimeState() {
@@ -110,6 +111,7 @@ class RobotJoystickCard extends HTMLElement {
 
     if (!this.lastPublish) this.lastPublish = 0;
     if (typeof this.lastPayload !== "string") this.lastPayload = "";
+    if (!this._joystickPublishTimer) this._joystickPublishTimer = null;
   }
 
   _storageKey() {
@@ -470,6 +472,24 @@ class RobotJoystickCard extends HTMLElement {
     }
   }
 
+  _startJoystickPublishLoop() {
+    this._stopJoystickPublishLoop();
+
+    const interval = Math.max(50, Number(this.config.publish_interval) || 100);
+
+    this._joystickPublishTimer = setInterval(() => {
+      if (!this.isDragging) return;
+      this._publishJoystick(true);
+    }, interval);
+  }
+
+  _stopJoystickPublishLoop() {
+    if (this._joystickPublishTimer) {
+      clearInterval(this._joystickPublishTimer);
+      this._joystickPublishTimer = null;
+    }
+  }
+
   _buildNumberOptions(start, end, step = 1, selected = null) {
     const out = [];
     for (let i = start; i <= end; i += step) {
@@ -637,6 +657,7 @@ class RobotJoystickCard extends HTMLElement {
       closeBtn.addEventListener("click", () => {
         this.joystickPanelOpen = false;
         this._updatePanels();
+        this._stopJoystickPublishLoop();
         this._reset();
       });
     }
@@ -645,6 +666,7 @@ class RobotJoystickCard extends HTMLElement {
       overlay.addEventListener("click", () => {
         this.joystickPanelOpen = false;
         this._updatePanels();
+        this._stopJoystickPublishLoop();
         this._reset();
       });
     }
@@ -1769,6 +1791,7 @@ class RobotJoystickCard extends HTMLElement {
       this.isDragging = true;
       this.pad.setPointerCapture(ev.pointerId);
       this._move(ev.clientX, ev.clientY, true);
+      this._startJoystickPublishLoop();
     });
 
     this.pad.addEventListener("pointermove", (ev) => {
@@ -1788,6 +1811,7 @@ class RobotJoystickCard extends HTMLElement {
         // ignore
       }
 
+      this._stopJoystickPublishLoop();
       this._reset();
     };
 
@@ -1796,6 +1820,7 @@ class RobotJoystickCard extends HTMLElement {
     this.pad.addEventListener("lostpointercapture", () => {
       if (this.isDragging) {
         this.isDragging = false;
+        this._stopJoystickPublishLoop();
         this._reset();
       }
     });
@@ -1929,10 +1954,7 @@ class RobotJoystickCard extends HTMLElement {
 
     if (!force) {
       const tooSoon = now - this.lastPublish < this.config.publish_interval;
-      const samePayload = payload === this.lastPayload;
-
-      if (tooSoon && samePayload) return;
-      if (samePayload) return;
+      if (tooSoon) return;
     }
 
     this.lastPublish = now;
@@ -1960,7 +1982,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.1.0 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.2.0 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
