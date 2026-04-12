@@ -21,8 +21,8 @@ class RobotJoystickCard extends HTMLElement {
 
       max_distance: 110,
       deadzone: 0.18,
-      publish_interval: 180,
-      hold_publish_interval: 400,
+      publish_interval: 100,
+      hold_publish_interval: 800,
       speed_step: 10,
 
       battery_entity: "sensor.mower_battery",
@@ -476,11 +476,11 @@ class RobotJoystickCard extends HTMLElement {
   _startJoystickPublishLoop() {
     this._stopJoystickPublishLoop();
 
-    const interval = Math.max(120, Number(this.config.hold_publish_interval) || 320);
+    const interval = Math.max(200, Number(this.config.hold_publish_interval) || 800);
 
     this._joystickPublishTimer = setInterval(() => {
       if (!this.isDragging) return;
-      this._publishJoystick(true);
+      this._publishJoystick(false);
     }, interval);
   }
 
@@ -1954,8 +1954,17 @@ class RobotJoystickCard extends HTMLElement {
     const payload = JSON.stringify(payloadObj);
 
     if (!force) {
-      const tooSoon = now - this.lastPublish < this.config.publish_interval;
-      if (tooSoon) return;
+      const samePayload = payload === this.lastPayload;
+
+      if (samePayload) {
+        const holdTooSoon =
+          now - this.lastPublish < (Number(this.config.hold_publish_interval) || 800);
+        if (holdTooSoon) return;
+      } else {
+        const moveTooSoon =
+          now - this.lastPublish < (Number(this.config.publish_interval) || 100);
+        if (moveTooSoon) return;
+      }
     }
 
     this.lastPublish = now;
@@ -1983,7 +1992,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.3.0 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.4.0 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
