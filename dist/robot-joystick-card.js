@@ -24,14 +24,14 @@ class RobotJoystickCard extends HTMLElement {
       publish_interval: 100,
       speed_step: 10,
 
-      battery_entity: "sensor.mower_battery",
+      battery_entity: "sensor.robotmowerbattery",
       battery_amps_entity: "sensor.robotmowerbatteryamps",
-      charge_entity: "sensor.mower_charge",
-      loop_entity: "sensor.mower_loop",
-      running_entity: "sensor.mower_running",
-      parked_entity: "sensor.mower_parked",
-      docked_entity: "sensor.mower_docked",
-      tracking_entity: "sensor.mower_tracking",
+      charge_entity: "sensor.mowercharge",
+      loop_entity: "sensor.mowerloop",
+      running_entity: "sensor.mowerrunning",
+      parked_entity: "sensor.mowerparked",
+      docked_entity: "sensor.mowerdocked",
+      tracking_entity: "sensor.mowertracking",
 
       robot_image: DEFAULT_ROBOT_IMAGE,
 
@@ -1646,11 +1646,11 @@ class RobotJoystickCard extends HTMLElement {
             <ha-icon icon="mdi:play"></ha-icon>
             <div>Start</div>
           </div>
-          <div class="cmd-btn red" data-command="stop">
+          <div class="cmd-btn red" data-command="pause">
             <ha-icon icon="mdi:stop"></ha-icon>
             <div>Stop</div>
           </div>
-          <div class="cmd-btn blue" data-command="exit_dock">
+          <div class="cmd-btn blue" data-command="Exit Dock">
             <ha-icon icon="mdi:home-export-outline"></ha-icon>
             <div>Exit Dock</div>
           </div>
@@ -1661,11 +1661,11 @@ class RobotJoystickCard extends HTMLElement {
         </div>
 
         <div class="section button-grid-2">
-          <div class="cmd-btn white" data-command="manual_mode">
+          <div class="cmd-btn white" data-command="manuale">
             <ha-icon icon="mdi:gamepad"></ha-icon>
             <div>Manual Mode</div>
           </div>
-          <div class="cmd-btn orange" data-command="auto_mode">
+          <div class="cmd-btn orange" data-command="automatico">
             <ha-icon icon="mdi:robot-mower"></ha-icon>
             <div>Automatic Mode</div>
           </div>
@@ -1882,7 +1882,7 @@ class RobotJoystickCard extends HTMLElement {
       active: 1,
     };
 
-    this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    this.knob.style.transform = \`translate(calc(-50% + \${dx}px), calc(-50% + \${dy}px))\`;
     this._refreshTelemetry();
     this._publishJoystick(force);
   }
