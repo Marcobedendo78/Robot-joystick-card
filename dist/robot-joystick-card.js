@@ -1882,7 +1882,7 @@ class RobotJoystickCard extends HTMLElement {
       active: 1,
     };
 
-    this.knob.style.transform = \`translate(calc(-50% + \${dx}px), calc(-50% + \${dy}px))\`;
+    this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     this._refreshTelemetry();
     this._publishJoystick(force);
   }
