@@ -1,5 +1,5 @@
 const DEFAULT_ROBOT_IMAGE = "/hacsfiles/Robot-joystick-card/Robot.jpg";
-
+ 
 class RobotJoystickCard extends HTMLElement {
   static getStubConfig() {
     return {
@@ -7,7 +7,7 @@ class RobotJoystickCard extends HTMLElement {
       title: "Robot Tagliaerba",
     };
   }
-
+ 
   setConfig(config) {
     if (!config) {
       throw new Error("Configurazione non valida");
@@ -44,7 +44,7 @@ class RobotJoystickCard extends HTMLElement {
     };
     this._ensureRuntimeState();
   }
-
+ 
   set hass(hass) {
     this._hass = hass;
     if (!this.content) {
@@ -54,14 +54,14 @@ class RobotJoystickCard extends HTMLElement {
     this._updateStates();
     this._refreshTimerUI();
   }
-
+ 
   getCardSize() { return 12; }
-
+ 
   disconnectedCallback() {
     this._stopGrassAnimation(true);
     this._stopJoystickPublishLoop();
   }
-
+ 
   _ensureRuntimeState() {
     if (typeof this.timerPanelOpen !== "boolean") this.timerPanelOpen = false;
     if (typeof this.joystickPanelOpen !== "boolean") this.joystickPanelOpen = false;
@@ -71,9 +71,9 @@ class RobotJoystickCard extends HTMLElement {
     if (typeof this.lastPayload !== "string") this.lastPayload = "";
     if (!this._joystickPublishTimer) this._joystickPublishTimer = null;
   }
-
+ 
   _storageKey() { return "robot-joystick-card-timers-v4"; }
-
+ 
   _defaultTimerState() {
     const count = Math.max(1, Math.min(8, Number(this.config?.timer_count || 6)));
     const timers = [];
@@ -82,7 +82,7 @@ class RobotJoystickCard extends HTMLElement {
     }
     return { timers };
   }
-
+ 
   _loadTimerState() {
     try {
       const raw = localStorage.getItem(this._storageKey());
@@ -98,30 +98,30 @@ class RobotJoystickCard extends HTMLElement {
       };
     } catch (_err) { return this._defaultTimerState(); }
   }
-
+ 
   _saveTimerState() {
     try { localStorage.setItem(this._storageKey(), JSON.stringify(this.timerState)); } catch (_err) {}
   }
-
+ 
   _getState(entityId) {
     return this._hass?.states?.[entityId]?.state ?? "-";
   }
-
+ 
   _getNumericState(entityId, fallback = NaN) {
     const value = parseFloat(this._getState(entityId));
     return Number.isNaN(value) ? fallback : value;
   }
-
+ 
   _normalizeState(val) {
     return String(val ?? "").trim().toLowerCase();
   }
-
+ 
   // FIX: rimossi valori specifici degli stati del robot — restano solo valori generici booleani
   _isTruthyState(val) {
     const state = this._normalizeState(val);
     return ["1", "on", "true", "yes", "si", "sì", "attivo", "active", "online"].includes(state);
   }
-
+ 
   _getBatteryPercentage(voltage) {
     const min = Number(this.config.batt_min_voltage ?? 26.4);
     const max = Number(this.config.batt_max_voltage ?? 33.6);
@@ -131,7 +131,7 @@ class RobotJoystickCard extends HTMLElement {
     pct = Math.max(0, Math.min(100, pct));
     return Math.round(pct);
   }
-
+ 
   _getBatteryBars(percentage) {
     if (percentage >= 90) return 5;
     if (percentage >= 70) return 4;
@@ -140,7 +140,7 @@ class RobotJoystickCard extends HTMLElement {
     if (percentage >= 10) return 1;
     return 0;
   }
-
+ 
   _renderBatteryIcon(percentage) {
     const bars = this._getBatteryBars(percentage);
     const cls = percentage <= 15 ? "low" : percentage <= 35 ? "mid" : "";
@@ -157,7 +157,7 @@ class RobotJoystickCard extends HTMLElement {
       <div class="battery-tip"></div>
     </div>`;
   }
-
+ 
   // FIX PRINCIPALE: priorità corretta — stati dinamici prima di quelli statici
   // Ordine: mowing > searching_wire > tracking > charging > docked > parked > idle
   // Ogni stato usa confronto ESPLICITO sul proprio valore atteso, NON _isTruthyState() cross-entità
@@ -168,14 +168,14 @@ class RobotJoystickCard extends HTMLElement {
     const runningState  = this._getState(this.config.running_entity);
     const trackingState = this._getState(this.config.tracking_entity);
     const loopState     = this._getState(this.config.loop_entity);
-
+ 
     const chargeNorm   = this._normalizeState(chargeState);
     const dockedNorm   = this._normalizeState(dockedState);
     const parkedNorm   = this._normalizeState(parkedState);
     const runningNorm  = this._normalizeState(runningState);
     const trackingNorm = this._normalizeState(trackingState);
     const loopNum      = parseInt(loopState, 10);
-
+ 
     // Confronti espliciti per valore — NON _isTruthyState() che causa falsi positivi incrociati
     const mowing        = runningNorm === "falciatura";
     const searchingWire = loopNum === 111 || loopNum === 222;
@@ -183,7 +183,7 @@ class RobotJoystickCard extends HTMLElement {
     const parked        = parkedNorm === "parcheggiato";
     const docked        = dockedNorm === "in base";
     const charging      = chargeNorm === "in carica";
-
+ 
     // Priorità: lo stato attivo/dinamico vince su quello statico
     if (mowing) {
       return { code: "mowing", label: "Falciatura", sublabel: "Robot in lavoro", animate: true, panelOff: false };
@@ -205,7 +205,7 @@ class RobotJoystickCard extends HTMLElement {
     }
     return { code: "idle", label: "Idle", sublabel: "In attesa", animate: false, panelOff: true };
   }
-
+ 
   _sendCommand(command) {
     if (!this._hass) return;
     this._hass.callService("mqtt", "publish", {
@@ -215,7 +215,7 @@ class RobotJoystickCard extends HTMLElement {
       retain: false,
     });
   }
-
+ 
   _publishTimerPayload() {
     if (!this._hass) return;
     const payload = {
@@ -237,7 +237,7 @@ class RobotJoystickCard extends HTMLElement {
       retain: false,
     });
   }
-
+ 
   _getTimerEntityValue(timerId, field) {
     const entityId = this.config[`timer${timerId}_${field}_entity`];
     if (!entityId) return null;
@@ -245,7 +245,7 @@ class RobotJoystickCard extends HTMLElement {
     if (raw === "-" || raw === "" || raw == null) return null;
     return raw;
   }
-
+ 
   _syncTimersFromEntitiesOrStorage() {
     if (!this.timerState?.timers?.length) {
       this.timerState = this._defaultTimerState();
@@ -269,27 +269,27 @@ class RobotJoystickCard extends HTMLElement {
     });
     if (changed) { this._saveTimerState(); }
   }
-
+ 
   _clampInt(val, min, max, fallback = 0) {
     const n = parseInt(val, 10);
     if (Number.isNaN(n)) return fallback;
     return Math.max(min, Math.min(max, n));
   }
-
+ 
   _parseEnabledValue(val, fallback = 0) {
     const norm = this._normalizeState(val);
     if (["1", "on", "true", "yes", "si", "sì", "attivo", "active"].includes(norm)) return 1;
     if (["0", "off", "false", "no", "disattivo", "inactive"].includes(norm)) return 0;
     return fallback;
   }
-
+ 
   _clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-
+ 
   _quantize(value, step = 10) {
     const s = Math.max(1, Number(step) || 10);
     return Math.round(value / s) * s;
   }
-
+ 
   _startGrassAnimation() {
     if (this._grassTimer || !this.statusEls?.grassCut) return;
     const duration = 4800;
@@ -304,12 +304,12 @@ class RobotJoystickCard extends HTMLElement {
     };
     this._grassTimer = requestAnimationFrame(animate);
   }
-
+ 
   _stopGrassAnimation(reset = false) {
     if (this._grassTimer) { cancelAnimationFrame(this._grassTimer); this._grassTimer = null; }
     if (this.statusEls?.grassCut && reset) { this.statusEls.grassCut.style.width = "0%"; }
   }
-
+ 
   _startJoystickPublishLoop() {
     this._stopJoystickPublishLoop();
     const interval = Math.max(200, Number(this.config.hold_publish_interval) || 800);
@@ -318,11 +318,11 @@ class RobotJoystickCard extends HTMLElement {
       this._publishJoystick(false);
     }, interval);
   }
-
+ 
   _stopJoystickPublishLoop() {
     if (this._joystickPublishTimer) { clearInterval(this._joystickPublishTimer); this._joystickPublishTimer = null; }
   }
-
+ 
   _buildNumberOptions(start, end, step = 1, selected = null) {
     const out = [];
     for (let i = start; i <= end; i += step) {
@@ -331,7 +331,7 @@ class RobotJoystickCard extends HTMLElement {
     }
     return out.join("");
   }
-
+ 
   _buildActionOptions(selected = 1) {
     const actions = [
       { value: 1, label: "Uscita Z1" },
@@ -344,12 +344,12 @@ class RobotJoystickCard extends HTMLElement {
       `<option value="${a.value}" ${Number(selected) === a.value ? "selected" : ""}>${a.label}</option>`
     ).join("");
   }
-
+ 
   _actionLabel(action) {
     const map = { 1: "Uscita Z1", 2: "Uscita Z2", 3: "Taglia sul filo", 4: "Partenza rapida", 5: "Custom" };
     return map[Number(action)] || "Custom";
   }
-
+ 
   _renderTimerRows() {
     const timers = this.timerState?.timers || [];
     return timers.map((timer) => `
@@ -388,13 +388,13 @@ class RobotJoystickCard extends HTMLElement {
       </div>
     `).join("");
   }
-
+ 
   _bindTimerEvents(root) {
     const timerBtn      = root.getElementById("timer_btn");
     const timerCloseBtn = root.getElementById("timer_close_btn");
     const timerOverlay  = root.getElementById("timer_overlay");
     const timerSaveBtn  = root.getElementById("save_timers_btn");
-
+ 
     if (timerBtn) {
       timerBtn.addEventListener("click", () => {
         this.joystickPanelOpen = false;
@@ -438,12 +438,12 @@ class RobotJoystickCard extends HTMLElement {
       });
     });
   }
-
+ 
   _bindJoystickPanelEvents(root) {
     const topBtn   = root.getElementById("joystick_btn");
     const closeBtn = root.getElementById("joystick_close_btn");
     const overlay  = root.getElementById("joystick_overlay");
-
+ 
     if (topBtn) {
       topBtn.addEventListener("click", () => {
         this.timerPanelOpen = false;
@@ -468,7 +468,7 @@ class RobotJoystickCard extends HTMLElement {
       });
     }
   }
-
+ 
   _readTimerValuesFromUI() {
     if (!this.shadowRoot || !this.timerState?.timers) return;
     this.timerState.timers = this.timerState.timers.map((timer) => {
@@ -485,7 +485,7 @@ class RobotJoystickCard extends HTMLElement {
       };
     });
   }
-
+ 
   _refreshTimerUI() {
     if (!this.shadowRoot || !this.timerState?.timers) return;
     this.timerState.timers.forEach((timer) => {
@@ -503,7 +503,7 @@ class RobotJoystickCard extends HTMLElement {
       }
     });
   }
-
+ 
   _updatePanels() {
     if (!this.shadowRoot) return;
     const timerPanel    = this.shadowRoot.getElementById("timer_panel");
@@ -515,12 +515,12 @@ class RobotJoystickCard extends HTMLElement {
     if (joystickPanel)   joystickPanel.classList.toggle("open", this.joystickPanelOpen);
     if (joystickOverlay) joystickOverlay.classList.toggle("open", this.joystickPanelOpen);
   }
-
+ 
   _renderCard() {
     this.state = { x: 0, y: 0, left: 0, right: 0, active: 0 };
     this.lastPublish = 0;
     this.lastPayload = "";
-
+ 
     const root = this.attachShadow({ mode: "open" });
     root.innerHTML = `
       <style>
@@ -732,7 +732,7 @@ class RobotJoystickCard extends HTMLElement {
         </div>
       </ha-card>
     `;
-
+ 
     this.content = root.querySelector("ha-card");
     this.pad  = root.getElementById("pad");
     this.knob = root.getElementById("knob");
@@ -740,7 +740,7 @@ class RobotJoystickCard extends HTMLElement {
     this.yv   = root.getElementById("yv");
     this.lv   = root.getElementById("lv");
     this.rv   = root.getElementById("rv");
-
+ 
     this.statusEls = {
       batteryPct:   root.getElementById("battery_pct"),
       batteryIcon:  root.getElementById("battery_icon"),
@@ -752,18 +752,18 @@ class RobotJoystickCard extends HTMLElement {
       grassCut:     root.getElementById("grass_cut"),
       timerSaveMsg: root.getElementById("timer_save_msg"),
     };
-
+ 
     root.querySelectorAll(".cmd-btn").forEach((btn) => {
       btn.addEventListener("click", () => { this._sendCommand(btn.dataset.command); });
     });
-
+ 
     this._bindJoystickPanelEvents(root);
     this._bindTimerEvents(root);
     this._refreshTimerUI();
     this._updatePanels();
-
+ 
     this.isDragging = false;
-
+ 
     this.pad.addEventListener("pointerdown", (ev) => {
       ev.preventDefault(); ev.stopPropagation();
       this.isDragging = true;
@@ -771,13 +771,13 @@ class RobotJoystickCard extends HTMLElement {
       this._move(ev.clientX, ev.clientY, true);
       this._startJoystickPublishLoop();
     });
-
+ 
     this.pad.addEventListener("pointermove", (ev) => {
       if (!this.isDragging) return;
       ev.preventDefault(); ev.stopPropagation();
       this._move(ev.clientX, ev.clientY, false);
     });
-
+ 
     const stopDrag = (ev) => {
       if (!this.isDragging) return;
       this.isDragging = false;
@@ -785,23 +785,23 @@ class RobotJoystickCard extends HTMLElement {
       this._stopJoystickPublishLoop();
       this._reset();
     };
-
+ 
     this.pad.addEventListener("pointerup",           stopDrag);
     this.pad.addEventListener("pointercancel",        stopDrag);
     this.pad.addEventListener("lostpointercapture",   () => {
       if (this.isDragging) { this.isDragging = false; this._stopJoystickPublishLoop(); this._reset(); }
     });
   }
-
+ 
   _updateStates() {
     if (!this._hass || !this.statusEls) return;
-
+ 
     const batteryVoltage = this._getNumericState(this.config.battery_entity);
     const batteryPct     = this._getBatteryPercentage(batteryVoltage);
     const batteryAmps    = this._getState(this.config.battery_amps_entity);
     const loop           = this._getState(this.config.loop_entity);
     const mode           = this._getRobotMode();
-
+ 
     this.statusEls.batteryPct.textContent  = `${batteryPct}%`;
     this.statusEls.batteryIcon.innerHTML   = this._renderBatteryIcon(batteryPct);
     this.statusEls.batteryAmps.textContent = batteryAmps;
@@ -809,14 +809,14 @@ class RobotJoystickCard extends HTMLElement {
     this.statusEls.mowText.textContent     = mode.label;
     this.statusEls.mowSub.textContent      = mode.sublabel;
     this.statusEls.mowPanel.classList.toggle("off", mode.panelOff);
-
+ 
     if (mode.animate) {
       this._startGrassAnimation();
     } else {
       this._stopGrassAnimation(true);
     }
   }
-
+ 
   _move(clientX, clientY, force = false) {
     const rect = this.pad.getBoundingClientRect();
     const cx = rect.left + rect.width  / 2;
@@ -826,43 +826,43 @@ class RobotJoystickCard extends HTMLElement {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const max  = this.config.max_distance;
     if (dist > max) { dx = (dx / dist) * max; dy = (dy / dist) * max; }
-
+ 
     let x = dx / max;
     let y = -(dy / max);
     if (Math.abs(x) < this.config.deadzone) x = 0;
     if (Math.abs(y) < this.config.deadzone) y = 0;
     x = this._clamp(x, -1, 1);
     y = this._clamp(y, -1, 1);
-
+ 
     let left  = this._clamp(y + x, -1, 1);
     let right = this._clamp(y - x, -1, 1);
     const step = Number(this.config.speed_step || 10);
-
+ 
     let leftPct  = this._clamp(this._quantize(Math.round(left  * 100), step), -100, 100);
     let rightPct = this._clamp(this._quantize(Math.round(right * 100), step), -100, 100);
     let xPct     = this._clamp(this._quantize(Math.round(x     * 100), step), -100, 100);
     let yPct     = this._clamp(this._quantize(Math.round(y     * 100), step), -100, 100);
-
+ 
     this.state = { x: xPct, y: yPct, left: leftPct, right: rightPct, active: 1 };
     this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     this._refreshTelemetry();
     this._publishJoystick(force);
   }
-
+ 
   _reset() {
     this.state = { x: 0, y: 0, left: 0, right: 0, active: 0 };
     if (this.knob) { this.knob.style.transform = "translate(-50%, -50%)"; }
     this._refreshTelemetry();
     this._publishJoystick(true);
   }
-
+ 
   _refreshTelemetry() {
     if (this.xv) this.xv.textContent = this.state.x;
     if (this.yv) this.yv.textContent = this.state.y;
     if (this.lv) this.lv.textContent = this.state.left;
     if (this.rv) this.rv.textContent = this.state.right;
   }
-
+ 
   _publishJoystick(force = false) {
     if (!this._hass) return;
     const now = Date.now();
@@ -881,11 +881,11 @@ class RobotJoystickCard extends HTMLElement {
     this._hass.callService("mqtt", "publish", { topic: this.config.topic, payload, qos: 0, retain: false });
   }
 }
-
+ 
 if (!customElements.get("robot-joystick-card")) {
   customElements.define("robot-joystick-card", RobotJoystickCard);
 }
-
+ 
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "robot-joystick-card",
@@ -893,7 +893,7 @@ window.customCards.push({
   description: "Controllo joystick MQTT per robot tagliaerba Arduino",
   preview: true,
 });
-
+ 
 console.info(
   "%c ROBOT-JOYSTICK-CARD %c 1.4.1 ",
   "color: white; background: #2f6bff; font-weight: 700;",
