@@ -729,7 +729,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.1.9 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.2.0 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
