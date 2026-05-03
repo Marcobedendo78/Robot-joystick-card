@@ -200,11 +200,9 @@ class RobotJoystickCard extends HTMLElement {
     // Nessuno stato attivo: il firmware ha già azzerato tutto.
     // Vince chi ha cambiato stato per ULTIMO (last_changed più recente).
     const candidates = [
-      { code: "mowing",        label: "Falciatura",    sublabel: "Robot in lavoro",       animate: true,  panelOff: false, t: this._getLastChanged(this.config.running_entity)  },
-      { code: "tracking",      label: "Tracking",      sublabel: "Tracciatura filo",      animate: false, panelOff: true,  t: this._getLastChanged(this.config.tracking_entity) },
-      { code: "parked",        label: "Parcheggiato",  sublabel: "Robot fermo",           animate: false, panelOff: true,  t: this._getLastChanged(this.config.parked_entity)   },
-      { code: "docked",        label: "In base",       sublabel: "In attesa di ricarica", animate: false, panelOff: true,  t: this._getLastChanged(this.config.docked_entity)   },
-      { code: "charging",      label: "In carica",     sublabel: "Robot in base",         animate: false, panelOff: true,  t: this._getLastChanged(this.config.charge_entity)   },
+      { code: "mowing",   label: "Falciatura",   sublabel: "Robot in lavoro",  animate: true,  panelOff: false, t: this._getLastChanged(this.config.running_entity)  },
+      { code: "tracking", label: "Tracking",     sublabel: "Tracciatura filo", animate: false, panelOff: true,  t: this._getLastChanged(this.config.tracking_entity) },
+      { code: "parked",   label: "Parcheggiato", sublabel: "Robot fermo",      animate: false, panelOff: true,  t: this._getLastChanged(this.config.parked_entity)   },
     ];
 
     const latest = candidates.reduce((best, c) => c.t > best.t ? c : best, candidates[0]);
@@ -907,7 +905,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.4.2 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.4.3 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
