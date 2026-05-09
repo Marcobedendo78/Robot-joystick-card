@@ -30,6 +30,7 @@ class RobotJoystickCard extends HTMLElement {
       parked_entity: "sensor.mower_parked",
       docked_entity: "sensor.mower_docked",
       tracking_entity: "sensor.mower_tracking",
+      error_entity: "sensor.mower_error",
       robot_image: DEFAULT_ROBOT_IMAGE,
       batt_min_voltage: 26.4,
       batt_max_voltage: 33.6,
@@ -116,7 +117,6 @@ class RobotJoystickCard extends HTMLElement {
     return String(val ?? "").trim().toLowerCase();
   }
 
-  // FIX: rimossi valori specifici degli stati del robot — restano solo valori generici booleani
   _isTruthyState(val) {
     const state = this._normalizeState(val);
     return ["1", "on", "true", "yes", "si", "sì", "attivo", "active", "online"].includes(state);
@@ -163,10 +163,8 @@ class RobotJoystickCard extends HTMLElement {
     return lc ? new Date(lc).getTime() : 0;
   }
 
-  // FIX: il firmware azzera le entità subito dopo averle attivate (es. parked torna OFF in secondi).
-  // La soluzione è trovare quale entità ha avuto l'ultimo cambio di stato ATTIVO più recente,
-  // usando i timestamp last_changed di HA invece del valore corrente.
   _getRobotMode() {
+    const errorState    = this._getState(this.config.error_entity);
     const runningState  = this._getState(this.config.running_entity);
     const trackingState = this._getState(this.config.tracking_entity);
     const parkedState   = this._getState(this.config.parked_entity);
@@ -174,6 +172,7 @@ class RobotJoystickCard extends HTMLElement {
     const chargeState   = this._getState(this.config.charge_entity);
     const loopState     = this._getState(this.config.loop_entity);
 
+    const errorNorm    = this._normalizeState(errorState);
     const runningNorm  = this._normalizeState(runningState);
     const trackingNorm = this._normalizeState(trackingState);
     const parkedNorm   = this._normalizeState(parkedState);
@@ -181,7 +180,7 @@ class RobotJoystickCard extends HTMLElement {
     const chargeNorm   = this._normalizeState(chargeState);
     const loopNum      = parseInt(loopState, 10);
 
-    // Stati che sono ATTUALMENTE attivi (valore presente)
+    const errorNow         = errorNorm === "error";
     const mowingNow        = runningNorm === "falciatura";
     const trackingNow      = trackingNorm === "tracciatura filo";
     const parkedNow        = parkedNorm === "parcheggiato";
@@ -189,7 +188,18 @@ class RobotJoystickCard extends HTMLElement {
     const chargingNow      = chargeNorm === "in carica";
     const searchingWireNow = loopNum === 111 || loopNum === 222;
 
-    // Se uno stato è ATTUALMENTE attivo, usalo direttamente con priorità dinamici > statici
+    // Priorità massima: errore robot, usato per robot sollevato.
+    if (errorNow) {
+      return {
+        code: "error",
+        label: "ERROR",
+        sublabel: "Robot sollevato",
+        animate: false,
+        panelOff: true,
+      };
+    }
+
+    // Stati che sono ATTUALMENTE attivi, con priorità dinamici > statici.
     if (mowingNow)        return { code: "mowing",        label: "Falciatura",     sublabel: "Robot in lavoro",        animate: true,  panelOff: false };
     if (searchingWireNow) return { code: "searching_wire",label: "Tracking",       sublabel: "Ricerca filo",           animate: false, panelOff: true  };
     if (chargingNow)      return { code: "charging",      label: "In carica",      sublabel: "Robot in base",          animate: false, panelOff: true  };
@@ -198,7 +208,7 @@ class RobotJoystickCard extends HTMLElement {
     if (trackingNow)      return { code: "tracking",      label: "Tracking",       sublabel: "Tracciatura filo",       animate: false, panelOff: true  };
 
     // Nessuno stato attivo: il firmware ha già azzerato tutto.
-    // Vince chi ha cambiato stato per ULTIMO (last_changed più recente).
+    // Vince chi ha cambiato stato per ULTIMO, ma solo se recente.
     const candidates = [
       { code: "mowing",   label: "Falciatura",   sublabel: "Robot in lavoro",  animate: true,  panelOff: false, t: this._getLastChanged(this.config.running_entity)  },
       { code: "tracking", label: "Tracking",     sublabel: "Tracciatura filo", animate: false, panelOff: true,  t: this._getLastChanged(this.config.tracking_entity) },
@@ -207,10 +217,15 @@ class RobotJoystickCard extends HTMLElement {
 
     const latest = candidates.reduce((best, c) => c.t > best.t ? c : best, candidates[0]);
 
-    // Usa il last_changed solo se recente (entro 5 minuti), altrimenti idle
     const fiveMin = 5 * 60 * 1000;
     if (Date.now() - latest.t < fiveMin) {
-      return { code: latest.code, label: latest.label, sublabel: latest.sublabel, animate: latest.animate, panelOff: latest.panelOff };
+      return {
+        code: latest.code,
+        label: latest.label,
+        sublabel: latest.sublabel,
+        animate: latest.animate,
+        panelOff: latest.panelOff,
+      };
     }
 
     return { code: "idle", label: "Idle", sublabel: "In attesa", animate: false, panelOff: true };
@@ -567,13 +582,14 @@ class RobotJoystickCard extends HTMLElement {
         .battery-tip { width: 4px; height: 10px; background: #a1a1a1; border-radius: 0 3px 3px 0; margin-left: 2px; }
         .mow-panel { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 58px; border-radius: 18px; background: linear-gradient(90deg, #f18f00 0%, #ff9800 100%); color: #fff; box-shadow: 0 10px 25px rgba(255,140,0,0.28); overflow: hidden; z-index: 2; }
         .mow-panel.off { background: linear-gradient(90deg, #444b57 0%, #59606d 100%); box-shadow: none; }
+        .mow-panel.error { background: linear-gradient(90deg, #b00020 0%, #ff1744 100%); box-shadow: 0 10px 25px rgba(255,23,68,0.35); }
         .mow-text { position: absolute; left: 14px; top: 8px; font-size: 16px; font-weight: 800; z-index: 3; line-height: 1.1; }
         .mow-sub { position: absolute; left: 14px; bottom: 8px; font-size: 11px; opacity: 0.95; z-index: 3; line-height: 1.1; }
         .grass-track { position: absolute; left: 132px; right: 8px; top: 8px; bottom: 8px; border-radius: 14px; overflow: hidden; z-index: 1; background: rgba(255,255,255,0.03); }
         .grass-tall { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0px, transparent 4px, rgba(255,255,255,0.35) 4px, rgba(255,255,255,0.35) 6px, transparent 6px, transparent 10px); mask-image: linear-gradient(to top, transparent 0%, rgba(0,0,0,1) 18%, rgba(0,0,0,1) 100%); -webkit-mask-image: linear-gradient(to top, transparent 0%, rgba(0,0,0,1) 18%, rgba(0,0,0,1) 100%); opacity: 0.95; }
         .grass-cut { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; overflow: hidden; background: radial-gradient(circle, rgba(255,255,255,0.28) 0 1.2px, transparent 1.3px); background-size: 8px 8px; background-position: 0 78%; mask-image: linear-gradient(to top, transparent 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 24%, transparent 25%); -webkit-mask-image: linear-gradient(to top, transparent 0%, rgba(0,0,0,1) 10%, rgba(0,0,0,1) 24%, transparent 25%); transition: width 0.06s linear; }
         .mower-mini { position: absolute; top: 50%; left: -62px; transform: translateY(-50%); width: 56px; height: 30px; animation: robotPass 4.8s linear infinite; z-index: 2; }
-        .mow-panel.off .mower-mini { animation: none; left: 10px; }
+        .mow-panel.off .mower-mini, .mow-panel.error .mower-mini { animation: none; left: 10px; }
         .mower-mini .rear-wheel { position: absolute; left: 0; bottom: 0; width: 24px; height: 24px; border-radius: 50%; background: #d4a53a; border: 2px solid rgba(0,0,0,0.45); box-sizing: border-box; }
         .mower-mini .rear-wheel::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.35); }
         .mower-mini .wheel-guard { position: absolute; left: -2px; bottom: 11px; width: 27px; height: 10px; border-radius: 14px 14px 0 0; border-top: 3px solid #d4a53a; border-left: 2px solid #d4a53a; border-right: 2px solid #d4a53a; background: transparent; transform: rotate(-2deg); }
@@ -818,7 +834,8 @@ class RobotJoystickCard extends HTMLElement {
     this.statusEls.loop.textContent        = loop;
     this.statusEls.mowText.textContent     = mode.label;
     this.statusEls.mowSub.textContent      = mode.sublabel;
-    this.statusEls.mowPanel.classList.toggle("off", mode.panelOff);
+    this.statusEls.mowPanel.classList.toggle("off", mode.panelOff && mode.code !== "error");
+    this.statusEls.mowPanel.classList.toggle("error", mode.code === "error");
 
     if (mode.animate) {
       this._startGrassAnimation();
@@ -905,8 +922,9 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.4.3 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.4.4 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
+
 
