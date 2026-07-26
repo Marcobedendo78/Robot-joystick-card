@@ -231,6 +231,20 @@ class RobotJoystickCard extends HTMLElement {
     return { code: "idle", label: "Idle", sublabel: "In attesa", animate: false, panelOff: true };
   }
 
+  _flashCommandButton(button) {
+    if (!button) return;
+
+    // Riavvia l'effetto anche in caso di pressioni ravvicinate.
+    button.classList.remove("command-pressed");
+    void button.offsetWidth;
+    button.classList.add("command-pressed");
+
+    clearTimeout(button._commandPressedTimeout);
+    button._commandPressedTimeout = setTimeout(() => {
+      button.classList.remove("command-pressed");
+    }, 500);
+  }
+
   _sendCommand(command) {
     if (!this._hass) return;
     this._hass.callService("mqtt", "publish", {
@@ -560,7 +574,7 @@ class RobotJoystickCard extends HTMLElement {
         .title { font-size: 22px; font-weight: 800; }
         .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #63ff88; box-shadow: 0 0 14px rgba(99,255,136,0.9); flex: 0 0 auto; }
         .section { margin-bottom: 16px; }
-        .panel-btn { width: 100%; border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; min-height: 66px; background: linear-gradient(180deg, rgba(63,132,255,0.95), rgba(42,95,220,0.95)); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; transition: transform 0.08s ease; }
+        .panel-btn { --press-color: #3f84ff; --press-glow: rgba(63,132,255,0.72); width: 100%; border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; min-height: 66px; background: linear-gradient(180deg, rgba(63,132,255,0.95), rgba(42,95,220,0.95)); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; transition: transform 0.08s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
         .panel-btn:active { transform: scale(0.985); }
         .hero { position: relative; min-height: 405px; border-radius: 24px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); background: radial-gradient(circle at 50% 35%, rgba(255,200,80,0.08), transparent 35%), linear-gradient(180deg, rgba(18,20,24,1) 0%, rgba(14,16,18,1) 100%); }
         .hero-bg { position: absolute; inset: 0; background-image: url('${this.config.robot_image}'); background-size: cover; background-repeat: no-repeat; background-position: center center; filter: saturate(0.95) contrast(1.02); }
@@ -603,12 +617,28 @@ class RobotJoystickCard extends HTMLElement {
         .button-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         .button-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .button-grid-bottom { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .cmd-btn { border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; background: rgba(255,255,255,0.03); min-height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: transform 0.08s ease, background 0.2s ease; font-weight: 700; text-align: center; padding: 8px; box-sizing: border-box; }
+        .cmd-btn { --press-color: #f2f2f2; --press-glow: rgba(242,242,242,0.62); border: 1px solid rgba(255,255,255,0.10); border-radius: 18px; background: rgba(255,255,255,0.03); min-height: 82px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: transform 0.08s ease, background 0.2s ease, border-color 0.16s ease, box-shadow 0.16s ease; font-weight: 700; text-align: center; padding: 8px; box-sizing: border-box; }
         .cmd-btn:active { transform: scale(0.98); }
         .cmd-btn:hover { background: rgba(255,255,255,0.06); }
         .cmd-btn ha-icon { --mdc-icon-size: 34px; }
+
+        .cmd-btn.green  { --press-color: #29c34a; --press-glow: rgba(41,195,74,0.72); }
+        .cmd-btn.red    { --press-color: #ff3b30; --press-glow: rgba(255,59,48,0.72); }
+        .cmd-btn.blue   { --press-color: #2f6bff; --press-glow: rgba(47,107,255,0.72); }
+        .cmd-btn.purple { --press-color: #b000d4; --press-glow: rgba(176,0,212,0.72); }
+        .cmd-btn.white  { --press-color: #f2f2f2; --press-glow: rgba(242,242,242,0.62); }
+        .cmd-btn.orange { --press-color: #f7a600; --press-glow: rgba(247,166,0,0.72); }
+
         .green ha-icon { color: #29c34a; } .red ha-icon { color: #ff3b30; } .blue ha-icon { color: #2f6bff; }
         .purple ha-icon { color: #b000d4; } .white ha-icon { color: #f2f2f2; } .orange ha-icon { color: #f7a600; }
+
+        .cmd-btn.command-pressed,
+        .panel-btn.command-pressed {
+          border-color: var(--press-color);
+          box-shadow:
+            0 0 0 2px var(--press-color),
+            0 0 18px 4px var(--press-glow);
+        }
         .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity 0.25s ease; z-index: 30; }
         .overlay.open { opacity: 1; pointer-events: auto; }
         .slide-panel { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 31; transform: translateY(108%); transition: transform 0.28s ease; border-radius: 24px; padding: 14px; background: linear-gradient(180deg, rgba(18,22,30,0.985), rgba(10,12,17,0.985)); border: 1px solid rgba(255,255,255,0.09); box-shadow: 0 18px 40px rgba(0,0,0,0.45); max-height: calc(100% - 20px); overflow: auto; }
@@ -779,6 +809,11 @@ class RobotJoystickCard extends HTMLElement {
       timerSaveMsg: root.getElementById("timer_save_msg"),
     };
 
+    // Effetto visivo su tutti i pulsanti, esclusa l'area del joystick.
+    root.querySelectorAll(".cmd-btn, .panel-btn").forEach((btn) => {
+      btn.addEventListener("click", () => this._flashCommandButton(btn));
+    });
+
     root.querySelectorAll(".cmd-btn").forEach((btn) => {
       btn.addEventListener("click", () => { this._sendCommand(btn.dataset.command); });
     });
@@ -922,9 +957,7 @@ window.customCards.push({
 });
 
 console.info(
-  "%c ROBOT-JOYSTICK-CARD %c 1.4.4 ",
+  "%c ROBOT-JOYSTICK-CARD %c 1.2.4 ",
   "color: white; background: #2f6bff; font-weight: 700;",
   "color: white; background: #111; font-weight: 700;"
 );
-
-
